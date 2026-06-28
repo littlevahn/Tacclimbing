@@ -35,19 +35,49 @@ a {
 }
 
 .brand {
-  padding: 34px 0 22px;
   text-align: center;
   text-transform: uppercase;
 }
 
+.brand-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: clamp(28px, 6vh, 72px) 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 38%, rgba(121, 199, 255, 0.16), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 22%, rgba(121, 199, 255, 0.05) 100%);
+}
+
+.brand-hero::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--blue), transparent);
+  box-shadow: 0 0 24px rgba(121, 199, 255, 0.35);
+}
+
+.brand-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .brand-mark {
   display: inline-block;
-  width: min(100%, 860px);
+  width: min(94vw, 1320px);
 }
 
 .brand-tacc {
   margin: 0;
-  font-size: clamp(4.5rem, 17vw, 13.5rem);
+  font-size: clamp(5.2rem, 23vw, 20rem);
   font-weight: 950;
   font-style: italic;
   line-height: 0.78;
@@ -61,8 +91,8 @@ a {
 }
 
 .brand-rule {
-  height: 10px;
-  margin: clamp(18px, 3vw, 30px) auto clamp(20px, 4vw, 42px);
+  height: clamp(7px, 1vw, 13px);
+  margin: clamp(18px, 4vh, 36px) auto clamp(18px, 4.5vh, 44px);
   background: linear-gradient(90deg, transparent, var(--blue) 7%, var(--blue) 93%, transparent);
   box-shadow: 0 0 18px rgba(121, 199, 255, 0.28);
 }
@@ -70,7 +100,7 @@ a {
 .brand-product {
   margin: 0;
   color: var(--blue);
-  font-size: clamp(2.1rem, 7vw, 5rem);
+  font-size: clamp(2.4rem, 8.2vw, 6.5rem);
   font-weight: 900;
   line-height: 0.95;
 }
@@ -81,7 +111,7 @@ a {
   margin: 18px auto 0;
   padding-top: 18px;
   border-top: 1px solid var(--line-soft);
-  font-size: clamp(1.3rem, 4vw, 3rem);
+  font-size: clamp(1.45rem, 4.4vw, 3.5rem);
   font-weight: 900;
   line-height: 1;
   color: var(--text);
@@ -279,11 +309,11 @@ footer {
   }
 
   .brand {
-    padding-top: 24px;
+    padding-top: 0;
   }
 
   .brand-subtitle {
-    width: 88%;
+    width: 92%;
   }
 
   .button {
