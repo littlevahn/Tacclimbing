@@ -254,4 +254,21 @@
     TACC Surface Lock / Your Skin Is Part of Your Technique.
   </footer>
 </body>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const requestInfoLinks = document.querySelectorAll('a[href="#contact"]');
+
+    requestInfoLinks.forEach(function (link) {
+      link.addEventListener('click', function () {
+        if (typeof gtag === 'function') {
+          gtag('event', 'request_product_info_click', {
+            event_category: 'engagement',
+            event_label: 'Request Product Info CTA'
+          });
+        }
+      });
+    });
+  });
+</script>
 </html>
