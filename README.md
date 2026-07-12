@@ -41,45 +41,35 @@ Your Skin Is Part of Your Technique.
    - Product info call-to-action
    - Not chalk / not lotion product framing
 
-3. **Product description**
-   - Finalized explanation of TACC as a precision skin-prep formula
-   - Plastic and fiberglass hold positioning
+3. **What TACC Is**
+   - Three compact product-positioning blocks
+   - Not Chalk
+   - Not Lotion
+   - Pre-Session Skin Prep
 
-4. **What TACC Is**
-   - Pre-session skin performance product
-   - Application and rinse context
-   - Modern gym and comp-style surface focus
-
-5. **What Surface Lock Means**
-   - Explanation of the controlled, tacky, responsive skin feel
-
-6. **Product details**
-   - Stick Response
-   - Fingertip Care
-   - Built For Indoor Holds
-
-7. **Who It's For / When To Use It**
-   - Indoor climbers focused on performance and skin feel
-   - Board holds, slopers, pinches, plastic, fiberglass, and comp-style movement
-
-8. **How To Use**
+4. **How To Use**
    - Drop application
    - Rub-in timing
    - Water-only rinse
    - Dry, chalk, climb, and reapply guidance
 
-9. **Formula Notes**
+5. **Product details**
+   - Stick Response
+   - Contact Control
+   - Session Reset
+
+6. **Formula Notes**
    - Glycerin
    - 1,3-Propanediol
    - Isopropyl Alcohol
 
-10. **FAQ**
-    - Chalk, lotion, grease, chalk compatibility, intended surfaces, and timing
+7. **FAQ**
+   - Chalk, lotion, grease, chalk compatibility, intended surfaces, and timing
 
-11. **Contact**
-    - Product availability
-    - Gym inquiries
-    - Retail and wholesale opportunities
+8. **Contact**
+   - Product availability
+   - Gym inquiries
+   - Retail and wholesale opportunities
     - Questions from climbers, gyms, and shops
 
 ## SEO Setup
