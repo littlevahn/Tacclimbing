@@ -1,6 +1,6 @@
 # TACC Surface Lock Landing Page
 
-Single-page landing page for **TACC Surface Lock**, a performance skin care product for rock climbing and fingertip care.
+Single-page landing page for **TACC Surface Lock**, a precision skin-prep formula for indoor climbers.
 
 ## Current Build
 
@@ -9,89 +9,95 @@ Single-page landing page for **TACC Surface Lock**, a performance skin care prod
 - Bootstrap 5.3 loaded by CDN for responsive grid/layout utilities
 - No inline CSS or JavaScript in the HTML
 - No custom JavaScript currently required
-- Responsive layout tested at desktop and phone widths
+
+## Product Positioning
+
+**TACC Surface Lock** is not chalk and not lotion. It is a pre-session skin-prep formula for indoor climbing, designed for climbers who want better tack, friction feel, and grip response on plastic and fiberglass holds.
+
+Tagline:
+
+```text
+Your Skin Is Part of Your Technique.
+```
 
 ## Design Direction
 
-The page is inspired by the provided TACC label/logo reference:
-
-- Near-black product-focused background
-- Large uppercase typography
-- White-to-light-blue gradient on the main `TACC` text
-- Light blue divider lines and accent color
-- Clean horizontal structure with strong section breaks
-- Minimal, polished, performance-product feel
-- Slight sci-fi/technical tone without making the page feel busy
-
-The opening brand area is designed as a full-screen intro panel. The `TACC / Surface Lock / Stick Response` lockup fills the first viewport, then the user scrolls into the product information sections below.
+- Matte black product-focused background
+- Premium off-white text
+- Icy blue accent color
+- Sharp, minimal, technical presentation
+- Indoor climbing and performance-focused tone
+- Precision tool feel, not skincare softness
 
 ## Page Sections
 
 1. **Full-screen brand intro**
-   - Text-based TACC logo treatment
-   - Blue horizontal rule
-   - Surface Lock and Stick Response label language
+   - Large TACC lockup
+   - Surface Lock product name
+   - Final tagline
 
 2. **Hero section**
-   - Product name
-   - Climbing skin care positioning
+   - Indoor climbing skin-prep positioning
    - Product info call-to-action
-   - 1 oz / 30 ml product highlight
+   - Not chalk / not lotion product framing
 
 3. **Product description**
-   - Placeholder copy for climbing use cases
-   - Fingertip care and performance positioning
+   - Finalized explanation of TACC as a precision skin-prep formula
+   - Plastic and fiberglass hold positioning
 
-4. **Product details**
-   - Three feature cards:
-     - Stick Response
-     - Fingertip Care
-     - Clean Application
+4. **What TACC Is**
+   - Pre-session skin performance product
+   - Application and rinse context
+   - Modern gym and comp-style surface focus
 
-5. **Contact**
-   - Placeholder email
-   - Placeholder phone
-   - Placeholder contact message
+5. **What Surface Lock Means**
+   - Explanation of the controlled, tacky, responsive skin feel
+
+6. **Product details**
+   - Stick Response
+   - Fingertip Care
+   - Built For Indoor Holds
+
+7. **Who It's For / When To Use It**
+   - Indoor climbers focused on performance and skin feel
+   - Board holds, slopers, pinches, plastic, fiberglass, and comp-style movement
+
+8. **How To Use**
+   - Drop application
+   - Rub-in timing
+   - Water-only rinse
+   - Dry, chalk, climb, and reapply guidance
+
+9. **Formula Notes**
+   - Glycerin
+   - 1,3-Propanediol
+   - Isopropyl Alcohol
+
+10. **FAQ**
+    - Chalk, lotion, grease, chalk compatibility, intended surfaces, and timing
+
+11. **Contact**
+    - Product availability
+    - Gym inquiries
+    - Retail and wholesale opportunities
+    - Questions from climbers, gyms, and shops
 
 ## SEO Setup
 
-The page includes initial SEO metadata for:
+The page metadata is aligned around:
 
 - TACC Surface Lock
-- Rock climbing skin care
-- Fingertip care
-- Grip performance
-- Stick response
-- Climbing hand care
-
-Open Graph and Twitter summary metadata are also included for better link previews.
-
-## Content And Copy Still Needed
-
-Before launch, the placeholder copy should be replaced with final brand/product language:
-
-- Final product tagline
-- Final product description
-- Clear explanation of what Surface Lock does
-- Who the product is for
-- When climbers should use it
-- Application instructions
-- Drying time or usage timing, if applicable
-- Ingredient or formula notes, if appropriate
-- Skin type guidance or cautions
-- Final feature/benefit copy for the three product detail cards
-- Final CTA text
-- Real contact email
-- Real contact phone number, if needed
-- Final retail, wholesale, gym, or distribution message
+- Indoor climbing skin prep
+- Better tack
+- Friction feel
+- Grip response
+- Plastic and fiberglass climbing holds
 
 ## Technical Notes
 
 - Keep custom CSS in `assets/css/styles.css`
-- Do not add inline `<style>` or `<script>` blocks to `index.html`
-- Add JavaScript only if the page needs interaction, and place it in a separate file such as `assets/js/main.js`
 - Keep Bootstrap linked before the custom stylesheet so custom styles override Bootstrap defaults
-- The page can be previewed locally with a simple static server, for example:
+- The page can be opened directly as a static HTML file, or previewed with a simple static server:
 
 ```bash
 python -m http.server 8080 --bind 127.0.0.1
