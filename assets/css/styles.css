@@ -50,8 +50,8 @@ a {
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 100vh;
-  min-height: 100svh;
+  min-height: 68vh;
+  min-height: 68svh;
   padding: clamp(28px, 6vh, 72px) 0;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
@@ -416,6 +416,53 @@ section {
   border-color: rgba(121, 199, 255, 0.38);
 }
 
+.purchase-price {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 18px;
+  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.purchase-price span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.9;
+}
+
+.purchase-details {
+  margin-top: 18px;
+}
+
+.purchase-details li {
+  padding: 7px 10px;
+  font-size: 0.74rem;
+}
+
+.product-image {
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-top: 3px solid rgba(121, 199, 255, 0.8);
+  background: transparent;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.32);
+}
+
+.product-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.product-image-portrait {
+  max-width: 360px;
+  margin-left: auto;
+}
+
 .testimonials {
   position: relative;
   overflow: hidden;
@@ -428,8 +475,12 @@ section {
 
 .testimonial-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
   gap: 14px;
+}
+
+.testimonial-grid-single {
+  grid-template-columns: minmax(0, 760px);
 }
 
 .testimonial-card {
@@ -551,6 +602,22 @@ details p {
   font-weight: 700;
 }
 
+.contact-item a {
+  color: var(--blue);
+  text-decoration-color: rgba(121, 199, 255, 0.45);
+  text-underline-offset: 3px;
+}
+
+.contact-item a:hover,
+.contact-item a:focus-visible {
+  color: #a8dcff;
+}
+
+.contact-item a:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
 footer {
   padding: 26px 0 40px;
   color: var(--muted);
@@ -582,6 +649,11 @@ footer {
 
   .button {
     width: 100%;
+  }
+
+  .product-image-portrait {
+    margin-right: auto;
+    margin-left: auto;
   }
 
   .feature-card {
