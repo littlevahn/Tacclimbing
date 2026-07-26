@@ -458,17 +458,20 @@ section {
 }
 
 .testimonial-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  display: flex;
   gap: 14px;
-}
-
-.testimonial-grid-single {
-  grid-template-columns: minmax(0, 760px);
+  max-width: 100%;
+  padding: 2px 2px 16px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-padding-inline: 2px;
+  scroll-snap-type: inline mandatory;
+  scrollbar-color: rgba(121, 199, 255, 0.72) rgba(255, 255, 255, 0.08);
 }
 
 .testimonial-card {
   display: flex;
+  flex: 0 0 min(100%, 380px);
   min-height: 315px;
   flex-direction: column;
   margin: 0;
@@ -478,6 +481,7 @@ section {
   background:
     linear-gradient(145deg, rgba(121, 199, 255, 0.07), transparent 42%),
     linear-gradient(180deg, var(--panel-soft), var(--panel));
+  scroll-snap-align: start;
 }
 
 .testimonial-card-featured {
@@ -653,9 +657,17 @@ footer {
 
   .technical-grid,
   .steps-list,
-  .testimonial-grid,
   .faq-grid {
     grid-template-columns: 1fr;
+  }
+
+  .testimonial-grid {
+    margin-right: -12px;
+    padding-right: 12px;
+  }
+
+  .testimonial-card {
+    flex-basis: min(88vw, 380px);
   }
 
   .check-list {

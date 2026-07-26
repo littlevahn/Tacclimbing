@@ -206,8 +206,20 @@
             <p>Early climber feedback on the controlled, tack-ready feel TACC brings to indoor sessions.</p>
           </div>
         </div>
-        <div class="testimonial-grid testimonial-grid-single" aria-label="TACC climber testimonials">
+        <div class="testimonial-grid" aria-label="TACC climber testimonials" tabindex="0">
           <figure class="testimonial-card">
+            <div class="testimonial-rating" aria-label="5 out of 5 stars">
+              <span aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
+            <blockquote>&ldquo;TACC is most noticeable for me on fiberglass, but it improves friction all around. I
+              honestly
+              feel like it increases my performance on macros by about 10%.&rdquo;</blockquote>
+            <figcaption>
+              <strong>Isaac Selph</strong>
+              <span>Competitive Climber</span>
+            </figcaption>
+          </figure>
+          <figure class="testimonial-card testimonial-card-featured">
             <div class="testimonial-rating" aria-label="5 out of 5 stars">
               <span aria-hidden="true">★★★★★</span>
             </div>
@@ -218,6 +230,46 @@
             <figcaption>
               <strong>Benjamin Aguilar</strong>
               <span>Climbing Coach / Spokane, WA</span>
+            </figcaption>
+          </figure>
+          <figure class="testimonial-card">
+            <div class="testimonial-rating" aria-label="5 out of 5 stars">
+              <span aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
+            <blockquote>&ldquo;TACC makes my skin feel consistently good. It&rsquo;s unlikely that I&rsquo;ll have a day
+              with really bad,
+              glassy skin when I&rsquo;ve been using it. Glassy skin can completely ruin a session for me, and TACC
+              helps make
+              sure that doesn&rsquo;t happen.&rdquo;</blockquote>
+            <figcaption>
+              <strong>Isaac Leff</strong>
+              <span>Competitive Climber</span>
+            </figcaption>
+          </figure>
+          <figure class="testimonial-card">
+            <div class="testimonial-rating" aria-label="5 out of 5 stars">
+              <span aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
+            <blockquote>&ldquo;TACC provides me with a level of skin protection I&rsquo;ve never gotten from any other
+              product. I
+              climb at least half a grade harder outdoors while using it.&rdquo;</blockquote>
+            <figcaption>
+              <strong>James Cook</strong>
+              <span>Board Climber &amp; Training Athlete</span>
+            </figcaption>
+          </figure>
+          <figure class="testimonial-card">
+            <div class="testimonial-rating" aria-label="5 out of 5 stars">
+              <span aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+            </div>
+            <blockquote>&ldquo;After consistently using TACC, I can confidently say it increases the overall stick of my
+              skin.
+              I&rsquo;m able to stay on more difficult holds with less effort&mdash;and sometimes hold and move off
+              things I would
+              normally struggle with.&rdquo;</blockquote>
+            <figcaption>
+              <strong>Reese Walker</strong>
+              <span>Dedicated Climber</span>
             </figcaption>
           </figure>
         </div>
@@ -312,24 +364,24 @@
     TACC Surface Lock / Your Skin Is Part of Your Technique.
   </footer>
 
-<script>
-  const buyButton = document.getElementById('buy-tacc');
+  <script>
+    const buyButton = document.getElementById('buy-tacc');
 
-  buyButton?.addEventListener('click', function () {
-    if (typeof window.gtag === 'function') {
-      window.gtag('event', 'begin_checkout', {
-        currency: 'USD',
-        value: 20.00,
-        items: [{
-          item_id: 'tacc-surface-lock',
-          item_name: 'TACC Surface Lock',
-          price: 20.00,
-          quantity: 1
-        }]
-      });
-    }
-  });
-</script>
+    buyButton?.addEventListener('click', function () {
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'begin_checkout', {
+          currency: 'USD',
+          value: 20.00,
+          items: [{
+            item_id: 'tacc-surface-lock',
+            item_name: 'TACC Surface Lock',
+            price: 20.00,
+            quantity: 1
+          }]
+        });
+      }
+    });
+  </script>
 
 </body>
 
