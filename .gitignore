@@ -1,0 +1,14 @@
+# .NET build output
+**/[Bb]in/
+**/[Oo]bj/
+
+# Azure Functions local and generated files
+**/local.settings.json
+**/.azure/
+
+# Local development artifacts
+*.user
+*.suo
+.vs/
+.vscode/
+
