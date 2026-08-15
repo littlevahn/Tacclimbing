@@ -2,6 +2,10 @@
 
 `Tacc.Api` is the .NET 9 isolated-worker Azure Functions backend for TACC. The public website remains static. Phase 2 adds a read-only inventory endpoint backed by private Azure Blob Storage; the existing anonymous health endpoint remains available.
 
+## Frontend relationship
+
+Phase 3 organizes the static website into `/`, `/how-to-use/`, and `/shop/`. The shop page is structural only and does not call this API yet. Both existing endpoints remain unchanged, and no frontend inventory requests, inventory write endpoints, checkout processing, or Stripe webhooks are part of Phase 3.
+
 ## Prerequisites
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
