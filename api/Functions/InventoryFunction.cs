@@ -11,19 +11,33 @@ public sealed class InventoryFunction(
     IInventoryService inventoryService,
     ILogger<InventoryFunction> logger)
 {
-    private const string ProductId = "tacc-shirt";
-    private static readonly string[] SizeOrder = ["S", "M", "L", "XL"];
-
     [Function("Inventory")]
     public async Task<HttpResponseData> RunAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "inventory")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "inventory/{productId}")]
         HttpRequestData request,
+        string productId,
         CancellationToken cancellationToken)
     {
         try
         {
-            var snapshot = await inventoryService.GetInventoryAsync(cancellationToken);
-            var responseDto = CreateResponse(snapshot.Document);
+            var result = await inventoryService.GetProductInventoryAsync(
+                productId,
+                cancellationToken);
+
+            if (result is null)
+            {
+                logger.LogInformation(
+                    "Inventory was requested for unknown product {ProductId}.",
+                    productId);
+
+                var notFoundResponse = request.CreateResponse(HttpStatusCode.NotFound);
+                await notFoundResponse.WriteAsJsonAsync(
+                    new InventoryErrorResponse("Product inventory was not found."),
+                    cancellationToken);
+                return notFoundResponse;
+            }
+
+            var responseDto = CreateResponse(result);
             var response = request.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(responseDto, cancellationToken);
             return response;
@@ -44,27 +58,17 @@ public sealed class InventoryFunction(
         }
     }
 
-    private static InventoryResponse CreateResponse(InventoryDocument document)
+    private static ProductInventoryResponse CreateResponse(ProductInventoryResult result)
     {
-        if (!document.Products.TryGetValue(ProductId, out var product))
-        {
-            throw new InvalidDataException(
-                $"The inventory document does not contain product '{ProductId}'.");
-        }
+        var variants = result.Product.Variants
+            .Select(variant => new VariantInventoryResponse(
+                variant.Key,
+                variant.Value.Quantity))
+            .ToList();
 
-        var sizes = new List<InventorySizeResponse>(SizeOrder.Length);
-
-        foreach (var size in SizeOrder)
-        {
-            if (!product.Sizes.TryGetValue(size, out var quantity) || quantity < 0)
-            {
-                throw new InvalidDataException(
-                    $"The inventory quantity for size '{size}' is missing or invalid.");
-            }
-
-            sizes.Add(new InventorySizeResponse(size, quantity));
-        }
-
-        return new InventoryResponse(ProductId, sizes);
+        return new ProductInventoryResponse(
+            result.ProductId,
+            result.Product.Name,
+            variants);
     }
 }

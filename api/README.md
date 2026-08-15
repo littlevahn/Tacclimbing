@@ -45,17 +45,28 @@ It returns HTTP 200 with a response identifying the TACC API as healthy. `UseDev
 
 ## Inventory storage
 
-Inventory is stored in the private `inventory` Blob container at `inventory.json`. The internal document is separate from the HTTP response and currently contains only the TACC shirt:
+Inventory is stored in the private `inventory` Blob container at `inventory.json`. Product IDs are stable dictionary keys, and every product contains generic variants. The current variants happen to represent shirt sizes, but future products can use identifiers such as colors or `default` without changing the model or public API.
+
+The internal document is separate from the HTTP response and currently contains only `tacc-shirt`:
 
 ```json
 {
   "products": {
     "tacc-shirt": {
-      "sizes": {
-        "S": 0,
-        "M": 0,
-        "L": 0,
-        "XL": 0
+      "name": "TACC Shirt",
+      "variants": {
+        "S": {
+          "quantity": 0
+        },
+        "M": {
+          "quantity": 0
+        },
+        "L": {
+          "quantity": 0
+        },
+        "XL": {
+          "quantity": 0
+        }
       }
     }
   }
@@ -66,15 +77,17 @@ Inventory is stored in the private `inventory` Blob container at `inventory.json
 
 On the first inventory request, the service creates the private container and default blob if either is missing. It never overwrites an existing blob. Reads retain the blob ETag internally to support optimistic-concurrency writes in a later phase.
 
+An inventory blob created before the multi-product revision must be manually converted to the `name` and `variants` structure above. If the local data is disposable, delete only `inventory/inventory.json` and let the next request recreate it. The service does not migrate or overwrite existing quantities automatically.
+
 Test the anonymous endpoint with:
 
 ```powershell
-Invoke-RestMethod http://localhost:7071/api/inventory
+Invoke-RestMethod http://localhost:7071/api/inventory/tacc-shirt
 ```
 
-The endpoint returns `tacc-shirt` quantities in `S`, `M`, `L`, `XL` order. Edit `inventory/inventory.json` in Azurite Storage Explorer and call the endpoint again to verify updated quantities. If storage is unavailable, the endpoint returns HTTP 503 with a safe error rather than reporting zero stock.
+The anonymous `GET /api/inventory/{productId}` endpoint returns a product name and generic variant DTOs. For `tacc-shirt`, variants are returned in stored `S`, `M`, `L`, `XL` order. Edit `inventory/inventory.json` in Azurite Storage Explorer and call the endpoint again to verify updated quantities. An unknown product returns HTTP 404. If storage is unavailable, the endpoint returns HTTP 503 with a safe error rather than reporting zero stock.
 
-`GET /api/inventory` is read-only in Phase 2. There is no inventory write endpoint, checkout behavior, or website integration.
+`GET /api/inventory/{productId}` is read-only in Phase 2. There is no inventory write endpoint, checkout behavior, or website integration. Azurite supplies Blob Storage locally; Azure Blob Storage supplies it in production.
 
 ## Configuration and CORS
 

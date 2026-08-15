@@ -4,5 +4,7 @@ namespace Tacc.Api.Services;
 
 public interface IInventoryService
 {
-    Task<InventorySnapshot> GetInventoryAsync(CancellationToken cancellationToken = default);
+    Task<ProductInventoryResult?> GetProductInventoryAsync(
+        string productId,
+        CancellationToken cancellationToken = default);
 }

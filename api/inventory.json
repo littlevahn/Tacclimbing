@@ -1,0 +1,21 @@
+{
+  "products": {
+    "tacc-shirt": {
+      "name": "TACC Shirt",
+      "variants": {
+        "S": {
+          "quantity": 1
+        },
+        "M": {
+          "quantity": 0
+        },
+        "L": {
+          "quantity": 0
+        },
+        "XL": {
+          "quantity": 0
+        }
+      }
+    }
+  }
+}

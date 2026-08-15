@@ -20,9 +20,12 @@ public sealed class BlobInventoryService(
         WriteIndented = true
     };
 
-    public async Task<InventorySnapshot> GetInventoryAsync(
+    public async Task<ProductInventoryResult?> GetProductInventoryAsync(
+        string productId,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(productId);
+
         var containerClient = blobServiceClient.GetBlobContainerClient(ContainerName);
 
         try
@@ -35,7 +38,17 @@ public sealed class BlobInventoryService(
             var download = await DownloadOrInitializeAsync(blobClient, cancellationToken);
             var document = Deserialize(download.Value.Content);
 
-            return new InventorySnapshot(document, download.Value.Details.ETag);
+            if (!document.Products.TryGetValue(productId, out var product))
+            {
+                return null;
+            }
+
+            ValidateProduct(productId, product);
+
+            return new ProductInventoryResult(
+                productId,
+                product,
+                download.Value.Details.ETag);
         }
         catch (RequestFailedException exception)
         {
@@ -48,6 +61,11 @@ public sealed class BlobInventoryService(
         catch (JsonException exception)
         {
             logger.LogError(exception, "The inventory blob contains invalid JSON.");
+            throw;
+        }
+        catch (InvalidDataException exception)
+        {
+            logger.LogError(exception, "The inventory blob contains invalid product data.");
             throw;
         }
     }
@@ -98,24 +116,54 @@ public sealed class BlobInventoryService(
 
     private static InventoryDocument Deserialize(BinaryData content)
     {
-        return JsonSerializer.Deserialize<InventoryDocument>(content, SerializerOptions)
+        var document = JsonSerializer.Deserialize<InventoryDocument>(content, SerializerOptions)
             ?? throw new JsonException("The inventory document was empty.");
+
+        if (document.Products is null)
+        {
+            throw new JsonException("The inventory document does not contain products.");
+        }
+
+        return document;
+    }
+
+    private static void ValidateProduct(string productId, InventoryProduct product)
+    {
+        if (product is null ||
+            string.IsNullOrWhiteSpace(product.Name) ||
+            product.Variants is null)
+        {
+            throw new InvalidDataException(
+                $"Product '{productId}' is missing required inventory data.");
+        }
+
+        foreach (var (variantId, variant) in product.Variants)
+        {
+            if (string.IsNullOrWhiteSpace(variantId) ||
+                variant is null ||
+                variant.Quantity < 0)
+            {
+                throw new InvalidDataException(
+                    $"Product '{productId}' contains invalid variant data.");
+            }
+        }
     }
 
     private static InventoryDocument CreateDefaultInventory()
     {
         return new InventoryDocument
         {
-            Products = new Dictionary<string, ProductInventory>(StringComparer.Ordinal)
+            Products = new Dictionary<string, InventoryProduct>(StringComparer.Ordinal)
             {
-                ["tacc-shirt"] = new ProductInventory
+                ["tacc-shirt"] = new InventoryProduct
                 {
-                    Sizes = new Dictionary<string, int>(StringComparer.Ordinal)
+                    Name = "TACC Shirt",
+                    Variants = new Dictionary<string, InventoryVariant>(StringComparer.Ordinal)
                     {
-                        ["S"] = 0,
-                        ["M"] = 0,
-                        ["L"] = 0,
-                        ["XL"] = 0
+                        ["S"] = new InventoryVariant { Quantity = 0 },
+                        ["M"] = new InventoryVariant { Quantity = 0 },
+                        ["L"] = new InventoryVariant { Quantity = 0 },
+                        ["XL"] = new InventoryVariant { Quantity = 0 }
                     }
                 }
             }
