@@ -4,9 +4,15 @@
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "InventoryStorageConnection": "UseDevelopmentStorage=true",
-    "AllowedOrigins__0": "http://localhost:8080",
+    "AllowedOrigins__0": "http://localhost:7000",
+    "AllowedOrigins__1": "https://localhost:7001",
     "BlobStorage__ConnectionString": "<not-configured>",
     "Stripe__SecretKey": "<not-configured>",
     "AdminAuthentication__Authority": "<not-configured>"
+  },
+  "Host": {
+    "LocalHttpPort": 7071,
+    "CORS": "http://localhost:7000,https://localhost:7001",
+    "CORSCredentials": false
   }
 }

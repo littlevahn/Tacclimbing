@@ -4,16 +4,16 @@
       "name": "TACC Shirt",
       "variants": {
         "S": {
-          "quantity": 1
+          "quantity": 2
         },
         "M": {
-          "quantity": 0
+          "quantity": 7
         },
         "L": {
-          "quantity": 0
+          "quantity": 12
         },
         "XL": {
-          "quantity": 0
+          "quantity": 21
         }
       }
     }

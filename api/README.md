@@ -4,7 +4,9 @@
 
 ## Frontend relationship
 
-Phase 3 organizes the static website into `/`, `/how-to-use/`, and `/shop/`. The shop page is structural only and does not call this API yet. Both existing endpoints remain unchanged, and no frontend inventory requests, inventory write endpoints, checkout processing, or Stripe webhooks are part of Phase 3.
+The static website lives under `Tacc.Site/wwwroot/` and uses `/shop/` as its dedicated merchandise page. In Phase 4, that page calls anonymous `GET /api/inventory/tacc-shirt` once on load and maps the returned generic variants to the shirt's S, M, L, and XL controls. The frontend API origin is configured in `Tacc.Site/wwwroot/assets/js/config.js`; no credentials belong in that public file.
+
+Both backend endpoints, the Blob schema, and read-only behavior remain unchanged. Phase 4 adds no inventory writes, checkout processing, Stripe integration, polling, admin functionality, or monitoring. A future phase should alert the site owner/developer when the public website cannot retrieve inventory from this API.
 
 ## Prerequisites
 
@@ -97,10 +99,16 @@ The anonymous `GET /api/inventory/{productId}` endpoint returns a product name a
 
 .NET configuration reads Function App settings and local `Values` as environment variables. Double underscores represent nested keys, so future configuration can use names such as `BlobStorage__ConnectionString`, `Stripe__SecretKey`, `AllowedOrigins__0`, and `AdminAuthentication__Authority`. Those values remain placeholders; the inventory integration uses only `InventoryStorageConnection` in this phase.
 
-For a local static server on port 8080, start Core Tools with only that origin allowed:
+For the Visual Studio local host, `local.settings.json` should contain the same `Host` section provided by `local.settings.example.json`:
 
-```powershell
-func start --cors http://localhost:8080
+```json
+"Host": {
+  "LocalHttpPort": 7071,
+  "CORS": "http://localhost:7000,https://localhost:7001",
+  "CORSCredentials": false
+}
 ```
+
+This keeps the API on `http://localhost:7071` and allows only the two configured `Tacc.Site` development origins. The committed example contains no secrets; the real `local.settings.json` remains ignored. Production CORS is configured separately on the Azure Function App and must not use a wildcard.
 
 In Azure, configure CORS on the Function App for the exact production TACC origin (and any separately required staging origin). Do not use `*` in production. CORS is an environment/host setting, not hard-coded application behavior.

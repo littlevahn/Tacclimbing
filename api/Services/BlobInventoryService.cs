@@ -45,10 +45,11 @@ public sealed class BlobInventoryService(
 
             ValidateProduct(productId, product);
 
-            return new ProductInventoryResult(
+             var productInventoryResult = new ProductInventoryResult(
                 productId,
                 product,
                 download.Value.Details.ETag);
+            return productInventoryResult;
         }
         catch (RequestFailedException exception)
         {
