@@ -25,10 +25,9 @@ Tacc.sln
 
 1. Open `Tacc.sln` in Visual Studio 2022.
 2. Ensure `api/local.settings.json` exists. If needed, copy `api/local.settings.example.json` and provide the local-only settings.
-3. Start Azurite so the Functions project can read the local inventory blob.
-4. In Visual Studio 2022 17.11 or later, select the shared `TACC Site + API` launch profile.
-5. Press F5.
-6. Open `http://localhost:7000/shop/index.html` and verify the inventory state loads.
+3. In Visual Studio 2022 17.11 or later, select the shared `TACC Site + API` launch profile.
+4. Press F5. The API's local service dependency starts Azurite automatically.
+5. Open `http://localhost:7000/shop/index.html` and verify the inventory state loads.
 
 The shared `Tacc.slnLaunch` profile starts both projects. If the Visual Studio version does not expose shared multi-project launch profiles, configure it manually:
 
@@ -66,7 +65,7 @@ Those values live in the ignored `api/local.settings.json` and the committed `ap
 
 ## Command-line development
 
-Start Azurite, then run each project in a separate terminal:
+Visual Studio starts Azurite automatically. For command-line development, start Azurite manually, then run each project in a separate terminal:
 
 ```powershell
 dotnet run --project Tacc.Site/Tacc.Site.csproj --launch-profile http

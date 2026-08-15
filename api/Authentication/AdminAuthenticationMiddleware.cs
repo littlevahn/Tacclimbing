@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.Functions.Worker.Middleware;
@@ -8,7 +7,7 @@ namespace Tacc.Api.Authentication;
 
 public sealed class AdminAuthenticationMiddleware(
     IEntraTokenValidator tokenValidator,
-    IAuthorizationService authorizationService) : IFunctionsWorkerMiddleware
+    InventoryAdminAuthorizationHandler authorizationHandler) : IFunctionsWorkerMiddleware
 {
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
@@ -41,11 +40,7 @@ public sealed class AdminAuthenticationMiddleware(
             return;
         }
 
-        var authorization = await authorizationService.AuthorizeAsync(
-            principal,
-            resource: null,
-            InventoryAdminAuthorization.PolicyName);
-        if (!authorization.Succeeded)
+        if (!authorizationHandler.IsAuthorized(principal))
         {
             context.GetInvocationResult().Value = await CreateErrorResponseAsync(
                 request,

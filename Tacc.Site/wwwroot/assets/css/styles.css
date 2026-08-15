@@ -797,6 +797,24 @@ section {
   background-size: 38px 38px, 38px 38px, auto, auto;
 }
 
+.shirt-product-media {
+  position: relative;
+  min-height: 620px;
+  margin: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--line-soft);
+  background: #080a0c;
+}
+
+.shirt-product-media video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .shirt-image-placeholder::before,
 .shirt-image-placeholder::after {
   position: absolute;
@@ -1227,7 +1245,8 @@ details p {
     grid-template-columns: 1fr;
   }
 
-  .shirt-image-placeholder {
+  .shirt-image-placeholder,
+  .shirt-product-media {
     min-height: 480px;
     border-right: 0;
     border-bottom: 1px solid var(--line-soft);
@@ -1330,7 +1349,8 @@ details p {
     width: 100%;
   }
 
-  .shirt-image-placeholder {
+  .shirt-image-placeholder,
+  .shirt-product-media {
     min-height: 390px;
   }
 

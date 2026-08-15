@@ -26,7 +26,7 @@ dotnet build --no-restore
 
 ## Run locally
 
-Start Azurite:
+Visual Studio starts Azurite automatically through the checked-in service dependency. When running from a terminal instead, start Azurite manually:
 
 ```powershell
 azurite

@@ -1,5 +1,4 @@
 using Azure.Storage.Blobs;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,15 +24,7 @@ var host = new HostBuilder()
         services.Configure<EntraAuthenticationOptions>(
             context.Configuration.GetSection(EntraAuthenticationOptions.SectionName));
         services.AddSingleton<IEntraTokenValidator, EntraTokenValidator>();
-        services.AddSingleton<IAuthorizationHandler, InventoryAdminAuthorizationHandler>();
-        services.AddAuthorization(options =>
-        {
-            options.AddPolicy(
-                InventoryAdminAuthorization.PolicyName,
-                policy => policy
-                    .RequireAuthenticatedUser()
-                    .AddRequirements(new InventoryAdminAuthorizationRequirement()));
-        });
+        services.AddSingleton<InventoryAdminAuthorizationHandler>();
     })
     .Build();
 
