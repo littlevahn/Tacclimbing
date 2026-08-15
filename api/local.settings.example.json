@@ -8,7 +8,11 @@
     "AllowedOrigins__1": "https://localhost:7001",
     "BlobStorage__ConnectionString": "<not-configured>",
     "Stripe__SecretKey": "<not-configured>",
-    "AdminAuthentication__Authority": "<not-configured>"
+    "Entra__TenantId": "YOUR_EXTERNAL_ID_TENANT_ID",
+    "Entra__ClientId": "YOUR_API_APPLICATION_CLIENT_ID",
+    "Entra__Authority": "https://YOUR_TENANT.ciamlogin.com/YOUR_TENANT.onmicrosoft.com/v2.0",
+    "Entra__Audience": "api://YOUR_API_APPLICATION_CLIENT_ID",
+    "Entra__AdminRole": "Tacc.Inventory.Admin"
   },
   "Host": {
     "LocalHttpPort": 7071,

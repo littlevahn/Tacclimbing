@@ -71,6 +71,96 @@ public sealed class BlobInventoryService(
         }
     }
 
+    public async Task<ProductInventoryUpdateResult?> UpdateProductInventoryAsync(
+        string productId,
+        string expectedETag,
+        IReadOnlyDictionary<string, int> quantities,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(productId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedETag);
+        ArgumentNullException.ThrowIfNull(quantities);
+
+        var containerClient = blobServiceClient.GetBlobContainerClient(ContainerName);
+
+        try
+        {
+            await containerClient.CreateIfNotExistsAsync(
+                PublicAccessType.None,
+                cancellationToken: cancellationToken);
+
+            var blobClient = containerClient.GetBlobClient(BlobName);
+            var download = await DownloadOrInitializeAsync(blobClient, cancellationToken);
+            var document = Deserialize(download.Value.Content);
+
+            if (!document.Products.TryGetValue(productId, out var product))
+            {
+                return null;
+            }
+
+            ValidateProduct(productId, product);
+            ValidateRequestedVariants(productId, product, quantities);
+
+            var previousQuantities = product.Variants.ToDictionary(
+                variant => variant.Key,
+                variant => variant.Value.Quantity,
+                StringComparer.Ordinal);
+
+            foreach (var (variantId, quantity) in quantities)
+            {
+                product.Variants[variantId] = new InventoryVariant { Quantity = quantity };
+            }
+
+            var content = BinaryData.FromObjectAsJson(document, SerializerOptions);
+            Response<BlobContentInfo> upload;
+            try
+            {
+                upload = await blobClient.UploadAsync(
+                    content,
+                    new BlobUploadOptions
+                    {
+                        HttpHeaders = new BlobHttpHeaders { ContentType = "application/json" },
+                        Conditions = new BlobRequestConditions { IfMatch = new ETag(expectedETag) }
+                    },
+                    cancellationToken);
+            }
+            catch (RequestFailedException exception) when (exception.Status == 412)
+            {
+                throw new InventoryConcurrencyException("Inventory changed during the update.", exception);
+            }
+
+            return new ProductInventoryUpdateResult(
+                new ProductInventoryResult(productId, product, upload.Value.ETag),
+                previousQuantities);
+        }
+        catch (InventoryValidationException)
+        {
+            throw;
+        }
+        catch (InventoryConcurrencyException)
+        {
+            throw;
+        }
+        catch (RequestFailedException exception)
+        {
+            logger.LogError(
+                exception,
+                "Blob Storage failed while updating inventory (status {Status}).",
+                exception.Status);
+            throw;
+        }
+        catch (JsonException exception)
+        {
+            logger.LogError(exception, "The inventory blob contains invalid JSON.");
+            throw;
+        }
+        catch (InvalidDataException exception)
+        {
+            logger.LogError(exception, "The inventory blob contains invalid product data.");
+            throw;
+        }
+    }
+
     private async Task<Response<BlobDownloadResult>> DownloadOrInitializeAsync(
         BlobClient blobClient,
         CancellationToken cancellationToken)
@@ -147,6 +237,23 @@ public sealed class BlobInventoryService(
                 throw new InvalidDataException(
                     $"Product '{productId}' contains invalid variant data.");
             }
+        }
+    }
+
+    private static void ValidateRequestedVariants(
+        string productId,
+        InventoryProduct product,
+        IReadOnlyDictionary<string, int> quantities)
+    {
+        if (quantities.Count != product.Variants.Count ||
+            quantities.Keys.Any(variantId =>
+                string.IsNullOrWhiteSpace(variantId) ||
+                !product.Variants.ContainsKey(variantId)) ||
+            product.Variants.Keys.Any(variantId => !quantities.ContainsKey(variantId)) ||
+            quantities.Values.Any(quantity => quantity < 0))
+        {
+            throw new InventoryValidationException(
+                $"The requested variants for product '{productId}' are invalid.");
         }
     }
 

@@ -1,6 +1,6 @@
 # TACC API
 
-`Tacc.Api` is the .NET 9 isolated-worker Azure Functions backend for TACC. The public website remains static. Phase 2 adds a read-only inventory endpoint backed by private Azure Blob Storage; the existing anonymous health endpoint remains available.
+`Tacc.Api` is the .NET 9 isolated-worker Azure Functions backend for TACC. The public website remains static. Inventory reads are backed by private Azure Blob Storage, while admin-only inventory updates are protected by Microsoft Entra External ID.
 
 ## Frontend relationship
 
@@ -81,7 +81,7 @@ The internal document is separate from the HTTP response and currently contains 
 
 `InventoryStorageConnection` configures the Blob Storage account. Local development uses `UseDevelopmentStorage=true`; production should provide the real connection securely through Function App settings or an equivalent secret-backed configuration source.
 
-On the first inventory request, the service creates the private container and default blob if either is missing. It never overwrites an existing blob. Reads retain the blob ETag internally to support optimistic-concurrency writes in a later phase.
+On the first inventory request, the service creates the private container and default blob if either is missing. It never overwrites an existing blob. Reads retain the blob ETag. The public endpoint does not expose it, but the admin endpoint returns it as an opaque concurrency token for safe updates.
 
 An inventory blob created before the multi-product revision must be manually converted to the `name` and `variants` structure above. If the local data is disposable, delete only `inventory/inventory.json` and let the next request recreate it. The service does not migrate or overwrite existing quantities automatically.
 
@@ -93,11 +93,21 @@ Invoke-RestMethod http://localhost:7071/api/inventory/tacc-shirt
 
 The anonymous `GET /api/inventory/{productId}` endpoint returns a product name and generic variant DTOs. For `tacc-shirt`, variants are returned in stored `S`, `M`, `L`, `XL` order. Edit `inventory/inventory.json` in Azurite Storage Explorer and call the endpoint again to verify updated quantities. An unknown product returns HTTP 404. If storage is unavailable, the endpoint returns HTTP 503 with a safe error rather than reporting zero stock.
 
-`GET /api/inventory/{productId}` is read-only in Phase 2. There is no inventory write endpoint, checkout behavior, or website integration. Azurite supplies Blob Storage locally; Azure Blob Storage supplies it in production.
+`GET /api/inventory/{productId}` is anonymous and read-only. It remains the public shop API and does not require a bearer token. Azurite supplies Blob Storage locally; Azure Blob Storage supplies it in production.
 
 ## Configuration and CORS
 
-.NET configuration reads Function App settings and local `Values` as environment variables. Double underscores represent nested keys, so future configuration can use names such as `BlobStorage__ConnectionString`, `Stripe__SecretKey`, `AllowedOrigins__0`, and `AdminAuthentication__Authority`. Those values remain placeholders; the inventory integration uses only `InventoryStorageConnection` in this phase.
+.NET configuration reads Function App settings and local `Values` as environment variables. Double underscores represent nested keys. The admin API requires these non-secret Entra application settings:
+
+```text
+Entra__TenantId=<External ID tenant ID>
+Entra__ClientId=<API application client ID>
+Entra__Authority=https://<tenant>.ciamlogin.com/<tenant>.onmicrosoft.com/v2.0
+Entra__Audience=api://<API application client ID>
+Entra__AdminRole=Tacc.Inventory.Admin
+```
+
+`Entra__Audience` must match the `aud` claim issued for the API access token. Configure the `Tacc.Inventory.Admin` app role in the Entra API application, assign it to permitted users/groups, and request an access token for this API. Tenant/application IDs are configuration, but secrets must stay in local settings, Function App settings, or Key Vault and must never be committed.
 
 For the Visual Studio local host, `local.settings.json` should contain the same `Host` section provided by `local.settings.example.json`:
 
@@ -111,4 +121,56 @@ For the Visual Studio local host, `local.settings.json` should contain the same 
 
 This keeps the API on `http://localhost:7071` and allows only the two configured `Tacc.Site` development origins. The committed example contains no secrets; the real `local.settings.json` remains ignored. Production CORS is configured separately on the Azure Function App and must not use a wildcard.
 
-In Azure, configure CORS on the Function App for the exact production TACC origin (and any separately required staging origin). Do not use `*` in production. CORS is an environment/host setting, not hard-coded application behavior.
+In Azure, configure CORS on the Function App for the exact production TACC origin (and any separately required staging origin). Do not use `*` in production. CORS is an environment/host setting, not hard-coded application behavior. The approved browser origins must allow the `Authorization` request header so the future admin frontend can send bearer tokens.
+
+## Admin inventory API
+
+The future admin frontend will use:
+
+```text
+GET /api/admin/inventory/{productId}
+PUT /api/admin/inventory/{productId}
+```
+
+Both require a valid bearer access token issued by the configured Microsoft Entra External ID authority and the `Tacc.Inventory.Admin` app role (or the role set in `Entra__AdminRole`). Authentication is evaluated only for the admin functions; health and the public inventory endpoint remain anonymous. An absent or invalid bearer token receives `401 Unauthorized`; a valid token without the app role receives `403 Forbidden`.
+
+Admin GET returns the product state and an opaque ETag:
+
+```json
+{
+  "productId": "tacc-shirt",
+  "name": "TACC Shirt",
+  "etag": "\"0x8...\"",
+  "variants": [
+    { "variantId": "S", "quantity": 2 },
+    { "variantId": "M", "quantity": 7 },
+    { "variantId": "L", "quantity": 12 },
+    { "variantId": "XL", "quantity": 21 }
+  ]
+}
+```
+
+Use that ETag unchanged with a complete variant state when sending PUT:
+
+```json
+{
+  "etag": "\"0x8...\"",
+  "variants": { "S": 12, "M": 8, "L": 5, "XL": 0 }
+}
+```
+
+Every quantity must be a non-negative integer. Submitted variants must exactly match the existing variant set. PUT conditionally writes the complete `inventory.json` document using the ETag while changing only the requested product, so other products are preserved. If another writer changes the blob first, the API returns `409 Conflict`; reload with GET and retry. Unknown products return `404`, invalid data returns `400`, and storage failures return a safe `503`. A successful PUT returns the new state and ETag.
+
+Successful changes are structured-log events containing the admin `oid` (or `sub`), product ID, before/after quantities, and Function invocation ID. Tokens, authorization headers, and secrets are not logged.
+
+## Testing authenticated admin endpoints locally
+
+There is no local authentication bypass. Configure Entra values in ignored `local.settings.json`, obtain an API access token for a user assigned `Tacc.Inventory.Admin`, and call the Functions host:
+
+```powershell
+$token = '<Entra API access token>'
+$headers = @{ Authorization = "Bearer $token" }
+Invoke-RestMethod http://localhost:7071/api/admin/inventory/tacc-shirt -Headers $headers
+```
+
+Use the returned `etag` in PUT. Test without a header for `401`, and with a valid token lacking the app role for `403`. Never paste access tokens into source files, logs, or issue trackers.

@@ -1,86 +1,146 @@
 # TACC Website and API
 
-TACC is a small static website for **TACC Surface Lock**, a precision skin-prep formula for indoor climbers, with a .NET Azure Functions backend for future merchandise inventory.
+TACC combines a static HTML/CSS/JavaScript website with a .NET 9 isolated-worker Azure Functions API backed by private Azure Blob Storage.
+
+## Solution layout
+
+```text
+Tacc.sln
+|-- Tacc.Site/
+|   |-- Tacc.Site.csproj       Minimal local static-file host
+|   |-- Program.cs
+|   `-- wwwroot/               Production-ready static website
+|       |-- index.html
+|       |-- how-to-use/index.html
+|       |-- shop/index.html
+|       |-- assets/
+|       `-- CNAME
+`-- api/
+    `-- Tacc.Api.csproj        Azure Functions v4 isolated worker
+```
+
+`Tacc.Site` contains no MVC, Razor Pages, Blazor, controllers, APIs, authentication, database access, or business logic. It exists only to give the static site a proper local HTTP origin during development.
+
+## Visual Studio local development
+
+1. Open `Tacc.sln` in Visual Studio 2022.
+2. Ensure `api/local.settings.json` exists. If needed, copy `api/local.settings.example.json` and provide the local-only settings.
+3. Start Azurite so the Functions project can read the local inventory blob.
+4. In Visual Studio 2022 17.11 or later, select the shared `TACC Site + API` launch profile.
+5. Press F5.
+6. Open `http://localhost:7000/shop/index.html` and verify the inventory state loads.
+
+The shared `Tacc.slnLaunch` profile starts both projects. If the Visual Studio version does not expose shared multi-project launch profiles, configure it manually:
+
+```text
+Solution
+-> Properties
+-> Configure Startup Projects
+-> Multiple startup projects
+
+Tacc.Site   Start
+Tacc.Api    Start
+```
+
+Use the `http` launch profile for `Tacc.Site` when testing the shop against the local HTTP Function host.
+
+### Expected services
+
+```text
+Tacc.Site   http://localhost:7000
+            https://localhost:7001
+
+Tacc.Api    http://localhost:7071
+
+Azurite     Local Azure Storage emulator
+```
+
+The local Functions configuration allows only these frontend origins:
+
+```text
+http://localhost:7000
+https://localhost:7001
+```
+
+Those values live in the ignored `api/local.settings.json` and the committed `api/local.settings.example.json` under the `Host.CORS` setting. Production CORS remains an Azure Function App setting and should allow only approved deployed origins.
+
+## Command-line development
+
+Start Azurite, then run each project in a separate terminal:
+
+```powershell
+dotnet run --project Tacc.Site/Tacc.Site.csproj --launch-profile http
+```
+
+```powershell
+cd api
+func start
+```
+
+Open `http://localhost:7000/shop/index.html`. Do not open the page through a `file:///` URL; browser API requests require an HTTP origin.
+
+## Static production deployment
+
+ASP.NET Core is not required in production. Deploy the raw contents of `Tacc.Site/wwwroot/` to the static host. The directory includes the HTML routes, CSS, JavaScript, images, icons, and `CNAME` needed by the public site.
+
+The local host only runs:
+
+```csharp
+app.UseDefaultFiles();
+app.UseStaticFiles();
+```
+
+No production page depends on server rendering or ASP.NET routing.
 
 ## Public site
 
-The Phase 3 site is organized into three routes:
+- `/index.html` — Surface Lock product overview and existing purchase path
+- `/how-to-use/index.html` — application instructions, session reset, FAQ, and formula
+- `/shop/index.html` — TACC Shirt inventory and size selection
 
-```text
-/
-|-- index.html              Product / Surface Lock overview
-|-- how-to-use/
-|   `-- index.html          Application instructions, session reset, FAQ, formula
-`-- shop/
-    `-- index.html          Future merchandise destination
+All custom styling lives in `Tacc.Site/wwwroot/assets/css/styles.css`. Shared navigation behavior lives in `assets/js/site.js`, public environment configuration in `assets/js/config.js`, and shop inventory behavior in `assets/js/shop.js`.
+
+## Shop inventory configuration
+
+The shop requests inventory once per page load:
+
+```http
+GET http://localhost:7071/api/inventory/tacc-shirt
 ```
 
-All pages share:
+`Tacc.Site/wwwroot/assets/js/config.js` centralizes the public API origin. Local `localhost` and `127.0.0.1` pages automatically use the Functions Core Tools port. For production on a separate Function App, replace the production empty value with the approved public HTTPS origin. Never put credentials or secrets in frontend configuration.
 
-- The matte-black, off-white, and icy-blue TACC visual system
-- Desktop navigation and an accessible mobile menu
-- Product, How To Use, Shop, and Instagram destinations
-- Active-page navigation state and a shared footer
-- `assets/css/styles.css` for styling
-- `assets/js/site.js` for navigation behavior and shared link configuration
+Inventory rules remain:
 
-The homepage remains focused on Surface Lock positioning, performance benefits, approved climber feedback, and the existing Surface Lock purchase path. Detailed application guidance now lives only on `/how-to-use/`. The `/shop/` route is intentionally a restrained placeholder: it has no shirt pricing, inventory, size selection, or checkout integration.
+- Above 10: no stock wording
+- 6–10: `Limited stock`
+- 1–5: exact quantity remaining
+- 0 or unknown API status: `More coming soon`
+
+The error state remains internally distinct from real zero inventory. Phase 4 performs no checkout request, inventory write, polling, or payment processing.
 
 ## Instagram configuration
 
-The actual TACC Instagram profile was not present in the repository when Phase 3 was implemented. Until it is supplied, Instagram links use the Instagram homepage as a neutral external fallback.
-
-Replace this value near the top of `assets/js/site.js`:
-
-```javascript
-const INSTAGRAM_URL = 'INSTAGRAM_URL_HERE';
-```
-
-with the complete approved profile URL, for example `https://www.instagram.com/<approved-handle>/`. Do not remove the surrounding quotes.
-
-## Product positioning
-
-TACC Surface Lock is not chalk and not lotion. It is pre-session skin prep for indoor climbers seeking better tack, friction feel, and grip response on plastic and fiberglass holds.
-
-Tagline:
-
-```text
-Your Skin Is Part of Your Technique.
-```
-
-## Local preview
-
-The site remains plain static HTML, CSS, and JavaScript. From the repository root:
-
-```powershell
-python -m http.server 8080 --bind 127.0.0.1
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8080/
-http://127.0.0.1:8080/how-to-use/
-http://127.0.0.1:8080/shop/
-```
-
-The site uses page-relative asset links and explicit `index.html` navigation targets, so it does not depend on the host rewriting directory URLs. It works at the domain root, under a hosting subpath, and when the HTML files are opened directly. A local web server is still recommended because it most closely matches production behavior.
+Set the approved public profile URL in `Tacc.Site/wwwroot/assets/js/site.js` by replacing `INSTAGRAM_URL_HERE`. Until then, the shared script preserves the neutral Instagram fallback and accessible configuration label.
 
 ## Backend
 
-The existing `.NET 9` isolated-worker Azure Functions project remains under `api/`. Phase 3 does not call the API from the frontend and does not change its routes:
+The API routes remain unchanged:
 
 ```http
 GET /api/health
 GET /api/inventory/{productId}
 ```
 
-See `api/README.md` for backend configuration, Azurite setup, and inventory testing.
+See `api/README.md` for Blob Storage, Azurite, inventory data, and backend configuration details.
 
 ## Project constraints
 
-- Keep custom site styling in `assets/css/styles.css`.
-- Keep shared site behavior in `assets/js/site.js`.
-- Do not add frontend inventory fetching until Phase 4.
-- Do not add shirt quantities, availability messaging, size selection, pricing, or checkout in Phase 3.
-- Keep `local.settings.json` and production credentials out of source control.
+- Keep the public deployment static under `Tacc.Site/wwwroot/`.
+- Keep `Tacc.Site` free of application logic and backend frameworks.
+- Keep `local.settings.json`, credentials, and production secrets out of source control.
+- Do not add Stripe, checkout requests, inventory decrement/reservation, admin features, or monitoring alerts in this phase.
+
+## Monitoring TODO
+
+A future phase should alert the site owner/developer when the public website cannot retrieve inventory from the Azure Functions API. Phase 4 logs the browser failure and shows a safe fallback only.
