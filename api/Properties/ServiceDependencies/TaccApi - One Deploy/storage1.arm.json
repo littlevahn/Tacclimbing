@@ -53,7 +53,7 @@
                 "name": "Standard_LRS",
                 "tier": "Standard"
               },
-              "kind": "Storage",
+              "kind": "StorageV2",
               "name": "climbingadvantagea7faa30",
               "type": "Microsoft.Storage/storageAccounts",
               "location": "[parameters('resourceLocation')]",
