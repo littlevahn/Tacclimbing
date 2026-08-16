@@ -11,5 +11,7 @@
 *.suo
 .vs/
 .vscode/
+**/node_modules/
+.azurite/
 
 /.azurite

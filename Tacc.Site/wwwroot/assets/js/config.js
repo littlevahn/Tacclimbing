@@ -3,14 +3,33 @@
   const isLocalDevelopment = localDevelopmentHosts.has(window.location.hostname);
   const isDirectFilePreview = window.location.protocol === 'file:';
 
+  // TODO: Replace with the public HTTPS origin of the deployed Azure Function App.
+  const productionApiBaseUrl = '';
+
+  // These identifiers are public SPA configuration values, not secrets.
+  // TODO: Replace with the TACC Admin Application (client) ID.
+  const adminClientId = 'TACC_ADMIN_CLIENT_ID';
+  // TODO: Replace with the workforce tenant Directory (tenant) ID.
+  const tenantId = 'TENANT_ID';
+  // TODO: Replace TACC_API_CLIENT_ID with the TACC API Application (client) ID.
+  const inventoryManageScope = 'api://TACC_API_CLIENT_ID/Inventory.Manage';
+
+  const apiBaseUrl = isDirectFilePreview
+    ? 'http://localhost:7071'
+    : isLocalDevelopment
+      ? `http://${window.location.hostname}:7071`
+      : productionApiBaseUrl;
+
   window.TACC_CONFIG = Object.freeze({
     // Local static sites use the Functions Core Tools default port automatically.
-    // For production on a separate Function App, replace the empty value with its public HTTPS origin.
-    // Never add credentials or secrets to this public file.
-    apiBaseUrl: isDirectFilePreview
-      ? 'http://localhost:7071'
-      : isLocalDevelopment
-        ? `http://${window.location.hostname}:7071`
-        : ''
+    // Never add credentials, access tokens, or secrets to this public file.
+    apiBaseUrl,
+    admin: Object.freeze({
+      clientId: adminClientId,
+      tenantId,
+      authority: `https://login.microsoftonline.com/${tenantId}`,
+      apiScope: inventoryManageScope,
+      productId: 'tacc-shirt'
+    })
   });
 })();

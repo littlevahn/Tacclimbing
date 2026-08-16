@@ -13,4 +13,6 @@ public sealed class EntraAuthenticationOptions
     public string? Audience { get; init; }
 
     public string AdminRole { get; init; } = InventoryAdminAuthorization.DefaultRole;
+
+    public string AdminScope { get; init; } = InventoryAdminAuthorization.DefaultScope;
 }

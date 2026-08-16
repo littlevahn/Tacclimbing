@@ -1,12 +1,12 @@
 # TACC API
 
-`Tacc.Api` is the .NET 9 isolated-worker Azure Functions backend for TACC. The public website remains static. Inventory reads are backed by private Azure Blob Storage, while admin-only inventory updates are protected by Microsoft Entra External ID.
+`Tacc.Api` is the .NET 9 isolated-worker Azure Functions backend for TACC. The public website remains static. Inventory reads are backed by private Azure Blob Storage, while admin-only inventory updates are protected by a Microsoft Entra workforce tenant.
 
 ## Frontend relationship
 
-The static website lives under `Tacc.Site/wwwroot/` and uses `/shop/` as its dedicated merchandise page. In Phase 4, that page calls anonymous `GET /api/inventory/tacc-shirt` once on load and maps the returned generic variants to the shirt's S, M, L, and XL controls. The frontend API origin is configured in `Tacc.Site/wwwroot/assets/js/config.js`; no credentials belong in that public file.
+The static website lives under `Tacc.Site/wwwroot/`. `/shop/` calls anonymous `GET /api/inventory/tacc-shirt`, while `/admin/` uses MSAL Browser and the protected admin endpoints. The frontend API and public Entra identifiers are configured in `Tacc.Site/wwwroot/assets/js/config.js`; no credentials belong in that public file.
 
-Both backend endpoints, the Blob schema, and read-only behavior remain unchanged. Phase 4 adds no inventory writes, checkout processing, Stripe integration, polling, admin functionality, or monitoring. A future phase should alert the site owner/developer when the public website cannot retrieve inventory from this API.
+The public endpoint and Blob schema remain unchanged. Admin writes use conditional ETags and do not add checkout processing, Stripe integration, purchase decrement, polling, or monitoring. A future phase should alert the site owner/developer when the public website cannot retrieve inventory from this API.
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ In another terminal, copy the example settings if local settings do not exist an
 
 ```powershell
 Copy-Item local.settings.example.json local.settings.json
-func start
+dotnet run --project Tacc.Api.csproj
 ```
 
 The health endpoint is available at:
@@ -100,14 +100,15 @@ The anonymous `GET /api/inventory/{productId}` endpoint returns a product name a
 .NET configuration reads Function App settings and local `Values` as environment variables. Double underscores represent nested keys. The admin API requires these non-secret Entra application settings:
 
 ```text
-Entra__TenantId=<External ID tenant ID>
+Entra__TenantId=<workforce tenant ID>
 Entra__ClientId=<API application client ID>
-Entra__Authority=https://<tenant>.ciamlogin.com/<tenant>.onmicrosoft.com/v2.0
+Entra__Authority=https://login.microsoftonline.com/<tenant ID>/v2.0
 Entra__Audience=api://<API application client ID>
 Entra__AdminRole=Tacc.Inventory.Admin
+Entra__AdminScope=Inventory.Manage
 ```
 
-`Entra__Audience` must match the `aud` claim issued for the API access token. Configure the `Tacc.Inventory.Admin` app role in the Entra API application, assign it to permitted users/groups, and request an access token for this API. Tenant/application IDs are configuration, but secrets must stay in local settings, Function App settings, or Key Vault and must never be committed.
+`Entra__Audience` must match the `aud` claim issued for the API access token. The API requires both the delegated `Inventory.Manage` value in the token's `scp` claim and the `Tacc.Inventory.Admin` value in its `roles` claim. Configure the scope and role on the TACC API registration, grant the TACC Admin SPA delegated permission, and assign the app role to permitted users/groups or B2B guests. Tenant/application IDs are configuration, but secrets must stay in local settings, Function App settings, or Key Vault and must never be committed.
 
 For the Visual Studio local host, `local.settings.json` should contain the same `Host` section provided by `local.settings.example.json`:
 
@@ -121,18 +122,18 @@ For the Visual Studio local host, `local.settings.json` should contain the same 
 
 This keeps the API on `http://localhost:7071` and allows only the two configured `Tacc.Site` development origins. The committed example contains no secrets; the real `local.settings.json` remains ignored. Production CORS is configured separately on the Azure Function App and must not use a wildcard.
 
-In Azure, configure CORS on the Function App for the exact production TACC origin (and any separately required staging origin). Do not use `*` in production. CORS is an environment/host setting, not hard-coded application behavior. The approved browser origins must allow the `Authorization` request header so the future admin frontend can send bearer tokens.
+In Azure, configure CORS on the Function App for the exact production TACC origin (and any separately required staging origin). Do not use `*` in production. CORS is an environment/host setting, not hard-coded application behavior. The approved browser origins must allow the `Authorization` and `Content-Type` request headers so the admin frontend can send bearer-authenticated GET and PUT requests.
 
 ## Admin inventory API
 
-The future admin frontend will use:
+The static admin frontend uses:
 
 ```text
 GET /api/admin/inventory/{productId}
 PUT /api/admin/inventory/{productId}
 ```
 
-Both require a valid bearer access token issued by the configured Microsoft Entra External ID authority and the `Tacc.Inventory.Admin` app role (or the role set in `Entra__AdminRole`). Authentication is evaluated only for the admin functions; health and the public inventory endpoint remain anonymous. An absent or invalid bearer token receives `401 Unauthorized`; a valid token without the app role receives `403 Forbidden`.
+Both require a valid bearer access token issued by the configured Microsoft Entra workforce authority, the `Inventory.Manage` delegated scope (or the scope set in `Entra__AdminScope`), and the `Tacc.Inventory.Admin` app role (or the role set in `Entra__AdminRole`). Authentication is evaluated only for the admin functions; health and the public inventory endpoint remain anonymous. An absent or invalid bearer token receives `401 Unauthorized`; a valid token without either required authorization claim receives `403 Forbidden`.
 
 Admin GET returns the product state and an opaque ETag:
 
@@ -165,7 +166,7 @@ Successful changes are structured-log events containing the admin `oid` (or `sub
 
 ## Testing authenticated admin endpoints locally
 
-There is no local authentication bypass. Configure Entra values in ignored `local.settings.json`, obtain an API access token for a user assigned `Tacc.Inventory.Admin`, and call the Functions host:
+There is no local authentication bypass. Configure Entra values in ignored `local.settings.json`, obtain an API access token containing both the delegated `Inventory.Manage` scope and the assigned `Tacc.Inventory.Admin` role, and call the Functions host:
 
 ```powershell
 $token = '<Entra API access token>'
@@ -173,4 +174,4 @@ $headers = @{ Authorization = "Bearer $token" }
 Invoke-RestMethod http://localhost:7071/api/admin/inventory/tacc-shirt -Headers $headers
 ```
 
-Use the returned `etag` in PUT. Test without a header for `401`, and with a valid token lacking the app role for `403`. Never paste access tokens into source files, logs, or issue trackers.
+Use the returned `etag` in PUT. Test without a header for `401`, and with valid tokens lacking either the delegated scope or app role for `403`. Never paste access tokens into source files, logs, or issue trackers.
