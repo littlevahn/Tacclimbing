@@ -12,7 +12,7 @@ The public endpoint and Blob schema remain unchanged. Admin writes use condition
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [Azure Functions Core Tools 4.x](https://learn.microsoft.com/azure/azure-functions/functions-run-local)
-- [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) for local Blob Storage
+- Visual Studio with the Azure development workload, or a globally installed [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite), for local Blob Storage
 
 ## Restore and build
 
@@ -26,10 +26,12 @@ dotnet build --no-restore
 
 ## Run locally
 
-Visual Studio starts Azurite automatically through the checked-in service dependency. When running from a terminal instead, start Azurite manually:
+Debug builds and runs start Azurite automatically through `Scripts/Start-Azurite.ps1`. The script prefers a repository-local or globally installed Azurite, falls back to Visual Studio's bundled emulator, and always uses the repository's ignored `.azurite` directory so Storage Explorer and the API see the same persisted data.
+
+If Azurite is not available through Visual Studio, install it from PowerShell with the signed command shim (which avoids the `npm.ps1` execution-policy error):
 
 ```powershell
-azurite
+npm.cmd install --global azurite
 ```
 
 In another terminal, copy the example settings if local settings do not exist and start the Functions host:
@@ -45,7 +47,7 @@ The health endpoint is available at:
 http://localhost:7071/api/health
 ```
 
-It returns HTTP 200 with a response identifying the TACC API as healthy. `UseDevelopmentStorage=true` expects Azurite on its default local endpoints.
+It returns HTTP 200 with a response identifying the TACC API as healthy. `UseDevelopmentStorage=true` expects Azurite on its default local endpoints (`127.0.0.1:10000-10002`). The startup script is idempotent: it leaves a running emulator alone and never creates, migrates, or replaces the inventory blob.
 
 `local.settings.json` is ignored by Git. Keep local settings and all credentials in that file or another environment-specific secret store; never commit secrets. Azure-hosted configuration should use Function App settings or a dedicated secret store such as Azure Key Vault.
 
@@ -81,9 +83,9 @@ The internal document is separate from the HTTP response and currently contains 
 
 `InventoryStorageConnection` configures the Blob Storage account. Local development uses `UseDevelopmentStorage=true`; production should provide the real connection securely through Function App settings or an equivalent secret-backed configuration source.
 
-On the first inventory request, the service creates the private container and default blob if either is missing. It never overwrites an existing blob. Reads retain the blob ETag. The public endpoint does not expose it, but the admin endpoint returns it as an opaque concurrency token for safe updates.
+The service never creates or replaces `inventory.json`. The blob must be provisioned explicitly before the API is used. If it is missing, inventory requests fail safely with `503 Service Unavailable`. Reads retain the blob ETag. The public endpoint does not expose it, but the admin endpoint returns it as an opaque concurrency token for safe updates.
 
-An inventory blob created before the multi-product revision must be manually converted to the `name` and `variants` structure above. If the local data is disposable, delete only `inventory/inventory.json` and let the next request recreate it. The service does not migrate or overwrite existing quantities automatically.
+An inventory blob created before the multi-product revision must be manually converted to the `name` and `variants` structure above. The service does not create, migrate, or overwrite inventory data automatically.
 
 Test the anonymous endpoint with:
 

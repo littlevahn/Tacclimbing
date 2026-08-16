@@ -13,5 +13,6 @@
 .vscode/
 **/node_modules/
 .azurite/
+/azurite_workspace/
 
 /.azurite

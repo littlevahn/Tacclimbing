@@ -30,12 +30,10 @@ public sealed class BlobInventoryService(
 
         try
         {
-            await containerClient.CreateIfNotExistsAsync(
-                PublicAccessType.None,
-                cancellationToken: cancellationToken);
+            await EnsureContainerExistsAsync(containerClient, cancellationToken);
 
             var blobClient = containerClient.GetBlobClient(BlobName);
-            var download = await DownloadOrInitializeAsync(blobClient, cancellationToken);
+            var download = await blobClient.DownloadContentAsync(cancellationToken);
             var document = Deserialize(download.Value.Content);
 
             if (!document.Products.TryGetValue(productId, out var product))
@@ -85,12 +83,10 @@ public sealed class BlobInventoryService(
 
         try
         {
-            await containerClient.CreateIfNotExistsAsync(
-                PublicAccessType.None,
-                cancellationToken: cancellationToken);
+            await EnsureContainerExistsAsync(containerClient, cancellationToken);
 
             var blobClient = containerClient.GetBlobClient(BlobName);
-            var download = await DownloadOrInitializeAsync(blobClient, cancellationToken);
+            var download = await blobClient.DownloadContentAsync(cancellationToken);
             var document = Deserialize(download.Value.Content);
 
             if (!document.Products.TryGetValue(productId, out var product))
@@ -161,47 +157,29 @@ public sealed class BlobInventoryService(
         }
     }
 
-    private async Task<Response<BlobDownloadResult>> DownloadOrInitializeAsync(
-        BlobClient blobClient,
+    private async Task EnsureContainerExistsAsync(
+        BlobContainerClient containerClient,
         CancellationToken cancellationToken)
     {
         try
         {
-            return await blobClient.DownloadContentAsync(cancellationToken);
+            await containerClient.CreateIfNotExistsAsync(
+                PublicAccessType.None,
+                cancellationToken: cancellationToken);
         }
-        catch (RequestFailedException exception) when (exception.Status == 404)
+        catch (RequestFailedException exception) when (
+            exception.Status == 409 &&
+            (string.Equals(
+                exception.ErrorCode,
+                nameof(BlobErrorCode.ContainerAlreadyExists),
+                StringComparison.OrdinalIgnoreCase) ||
+             exception.Message.Contains(
+                "<Code>ContainerAlreadyExists</Code>",
+                StringComparison.Ordinal)))
         {
-            var defaultInventory = CreateDefaultInventory();
-            var content = BinaryData.FromObjectAsJson(defaultInventory, SerializerOptions);
-
-            try
-            {
-                await blobClient.UploadAsync(
-                    content,
-                    new BlobUploadOptions
-                    {
-                        HttpHeaders = new BlobHttpHeaders
-                        {
-                            ContentType = "application/json"
-                        },
-                        Conditions = new BlobRequestConditions
-                        {
-                            IfNoneMatch = ETag.All
-                        }
-                    },
-                    cancellationToken);
-
-                logger.LogInformation(
-                    "Initialized inventory because {BlobName} did not exist.",
-                    BlobName);
-            }
-            catch (RequestFailedException uploadException)
-                when (uploadException.Status is 409 or 412)
-            {
-                // Another request initialized the blob after this request observed it missing.
-            }
-
-            return await blobClient.DownloadContentAsync(cancellationToken);
+            // Some emulator versions return the correct idempotent conflict body
+            // with a non-storage content type, so the SDK does not suppress it.
+            logger.LogDebug("The inventory container already exists.");
         }
     }
 
@@ -257,24 +235,4 @@ public sealed class BlobInventoryService(
         }
     }
 
-    private static InventoryDocument CreateDefaultInventory()
-    {
-        return new InventoryDocument
-        {
-            Products = new Dictionary<string, InventoryProduct>(StringComparer.Ordinal)
-            {
-                ["tacc-shirt"] = new InventoryProduct
-                {
-                    Name = "TACC Shirt",
-                    Variants = new Dictionary<string, InventoryVariant>(StringComparer.Ordinal)
-                    {
-                        ["S"] = new InventoryVariant { Quantity = 0 },
-                        ["M"] = new InventoryVariant { Quantity = 0 },
-                        ["L"] = new InventoryVariant { Quantity = 0 },
-                        ["XL"] = new InventoryVariant { Quantity = 0 }
-                    }
-                }
-            }
-        };
-    }
 }
