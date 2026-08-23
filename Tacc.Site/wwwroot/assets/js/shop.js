@@ -3,6 +3,53 @@
   const DISPLAY_VARIANT_IDS = Object.freeze(['S', 'M', 'L', 'XL']);
   const REQUEST_TIMEOUT_MS = 8000;
 
+  const setupProductMedia = () => {
+    document.querySelectorAll('[data-product-media]').forEach((gallery) => {
+      const tabs = [...gallery.querySelectorAll('[data-media-tab]')];
+      const panels = [...gallery.querySelectorAll('[data-media-panel]')];
+
+      const selectMedia = (selectedTab) => {
+        const selectedPanelId = selectedTab.getAttribute('aria-controls');
+
+        tabs.forEach((tab) => {
+          const isSelected = tab === selectedTab;
+          tab.setAttribute('aria-selected', String(isSelected));
+          tab.tabIndex = isSelected ? 0 : -1;
+        });
+
+        panels.forEach((panel) => {
+          const isSelected = panel.id === selectedPanelId;
+          panel.hidden = !isSelected;
+
+          panel.querySelectorAll('video').forEach((video) => {
+            if (isSelected) {
+              video.play().catch(() => {});
+            } else {
+              video.pause();
+            }
+          });
+        });
+      };
+
+      tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => selectMedia(tab));
+        tab.addEventListener('keydown', (event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+            return;
+          }
+
+          event.preventDefault();
+          const direction = event.key === 'ArrowRight' ? 1 : -1;
+          const nextTab = tabs[(index + direction + tabs.length) % tabs.length];
+          selectMedia(nextTab);
+          nextTab.focus();
+        });
+      });
+    });
+  };
+
+  setupProductMedia();
+
   const productElement = document.querySelector(`[data-inventory-product="${PRODUCT_ID}"]`);
 
   if (!productElement) {
