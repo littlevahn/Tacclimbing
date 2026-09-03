@@ -161,6 +161,14 @@ Successful changes are structured-log events containing the admin `oid` (or `sub
 
 ## Stripe checkout webhook
 
+The shop starts a hosted Stripe Checkout Session with:
+
+```text
+POST /api/stripe/checkout
+```
+
+The request contains the internal product and selected variant IDs. The API resolves the current `stripePriceId` from `inventory.json`, rejects missing or out-of-stock variants, and returns only Stripe's hosted HTTPS Checkout URL. The browser never chooses a trusted Stripe Price ID.
+
 Configure Stripe to send `checkout.session.completed` events to:
 
 ```text
@@ -178,6 +186,10 @@ Add these private Function App settings (or local-only values) and never commit 
 ```text
 Stripe__SecretKey=sk_...
 Stripe__WebhookSecret=whsec_...
+Stripe__CheckoutSuccessUrl=https://tacclimbing.com/shop/?checkout=success
+Stripe__CheckoutCancelUrl=https://tacclimbing.com/shop/?checkout=cancelled
+Stripe__AllowedShippingCountries__0=US
+Stripe__ShippingRateId=shr_... # optional; omit only when no separate shipping charge applies
 ```
 
 ## Testing authenticated admin endpoints locally

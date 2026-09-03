@@ -14,6 +14,11 @@ public interface IInventoryService
         IReadOnlyDictionary<string, int> quantities,
         CancellationToken cancellationToken = default);
 
+    Task<CheckoutInventoryItem?> GetCheckoutItemAsync(
+        string productId,
+        string variantId,
+        CancellationToken cancellationToken = default);
+
     Task<StripeInventoryUpdateResult> ProcessStripeCheckoutAsync(
         string stripeEventId,
         IReadOnlyList<PurchasedStripeLineItem> lineItems,

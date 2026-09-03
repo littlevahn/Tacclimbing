@@ -115,6 +115,62 @@ public sealed class BlobInventoryService(
         }
     }
 
+    public async Task<CheckoutInventoryItem?> GetCheckoutItemAsync(
+        string productId,
+        string variantId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(productId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(variantId);
+
+        try
+        {
+            var (document, _, _) = await DownloadAsync(cancellationToken);
+            var matches = FindProducts(document, productId)
+                .Where(product => string.Equals(product.Size, variantId, StringComparison.Ordinal))
+                .ToList();
+
+            if (matches.Count == 0)
+            {
+                return null;
+            }
+
+            if (matches.Count != 1 || string.IsNullOrWhiteSpace(matches[0].StripePriceId))
+            {
+                throw new InvalidDataException(
+                    $"Variant '{variantId}' for product '{productId}' does not have one Stripe price mapping.");
+            }
+
+            var product = matches[0];
+            return new CheckoutInventoryItem(
+                product.Key,
+                productId,
+                product.Size,
+                product.StripePriceId!,
+                product.Quantity);
+        }
+        catch (RequestFailedException exception)
+        {
+            logger.LogError(
+                exception,
+                "Blob Storage failed while resolving checkout inventory for {ProductId}/{VariantId} (status {Status}).",
+                productId,
+                variantId,
+                exception.Status);
+            throw;
+        }
+        catch (JsonException exception)
+        {
+            logger.LogError(exception, "The inventory blob contains invalid JSON while resolving checkout inventory.");
+            throw;
+        }
+        catch (InvalidDataException exception)
+        {
+            logger.LogError(exception, "The inventory blob contains invalid checkout product data.");
+            throw;
+        }
+    }
+
     public async Task<StripeInventoryUpdateResult> ProcessStripeCheckoutAsync(
         string stripeEventId,
         IReadOnlyList<PurchasedStripeLineItem> lineItems,
