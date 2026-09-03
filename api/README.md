@@ -6,7 +6,7 @@
 
 The static website lives under `Tacc.Site/wwwroot/`. `/shop/` calls anonymous `GET /api/inventory/tacc-shirt`, while `/admin/` uses MSAL Browser and the protected admin endpoints. The frontend API and public Entra identifiers are configured in `Tacc.Site/wwwroot/assets/js/config.js`; no credentials belong in that public file.
 
-The public endpoint and Blob schema remain unchanged. Admin writes use conditional ETags and do not add checkout processing, Stripe integration, purchase decrement, polling, or monitoring. A future phase should alert the site owner/developer when the public website cannot retrieve inventory from this API.
+The public endpoint contract remains unchanged. Admin writes and Stripe checkout processing use conditional Blob ETags; the webhook decrements inventory only after a signed `checkout.session.completed` event. A future phase should alert the site owner/developer when the public website cannot retrieve inventory from this API.
 
 ## Prerequisites
 
@@ -53,39 +53,32 @@ It returns HTTP 200 with a response identifying the TACC API as healthy. `UseDev
 
 ## Inventory storage
 
-Inventory is stored in the private `inventory` Blob container at `inventory.json`. Product IDs are stable dictionary keys, and every product contains generic variants. The current variants happen to represent shirt sizes, but future products can use identifiers such as colors or `default` without changing the model or public API.
+Inventory is stored in the private `inventory` Blob container at `inventory.json`. Each inventory-managed Stripe product/size is a separate record, identified by a stable `key`. The Blob file remains the source of truth; the public and admin `tacc-shirt` endpoints group matching `tacc-shirt-*` records into their size variants.
 
 The internal document is separate from the HTTP response and currently contains only `tacc-shirt`:
 
 ```json
 {
-  "products": {
-    "tacc-shirt": {
-      "name": "TACC Shirt",
-      "variants": {
-        "S": {
-          "quantity": 0
-        },
-        "M": {
-          "quantity": 0
-        },
-        "L": {
-          "quantity": 0
-        },
-        "XL": {
-          "quantity": 0
-        }
-      }
+  "products": [
+    {
+      "key": "tacc-shirt-small",
+      "name": "TACC Shirt - Small",
+      "size": "S",
+      "stripeProductId": "prod_...",
+      "stripePriceId": "price_...",
+      "quantity": 10
     }
-  }
+  ]
 }
 ```
+
+`stripePriceId` is the primary checkout mapping because it is unique to the sold SKU. The webhook falls back to `stripeProductId` only when a price is not represented in the Stripe line item. The service adds a `processedStripeEventIds` collection to the Blob only after the first successfully processed webhook; it is internal idempotency metadata and is not returned by either inventory API.
 
 `InventoryStorageConnection` configures the Blob Storage account. Local development uses `UseDevelopmentStorage=true`; production should provide the real connection securely through Function App settings or an equivalent secret-backed configuration source.
 
 The service never creates or replaces `inventory.json`. The blob must be provisioned explicitly before the API is used. If it is missing, inventory requests fail safely with `503 Service Unavailable`. Reads retain the blob ETag. The public endpoint does not expose it, but the admin endpoint returns it as an opaque concurrency token for safe updates.
 
-An inventory blob created before the multi-product revision must be manually converted to the `name` and `variants` structure above. The service does not create, migrate, or overwrite inventory data automatically.
+The service does not create, migrate, or replace inventory data automatically. Provision the Blob explicitly from the current product-per-size schema before the API is used.
 
 Test the anonymous endpoint with:
 
@@ -93,7 +86,7 @@ Test the anonymous endpoint with:
 Invoke-RestMethod http://localhost:7071/api/inventory/tacc-shirt
 ```
 
-The anonymous `GET /api/inventory/{productId}` endpoint returns a product name and generic variant DTOs. For `tacc-shirt`, variants are returned in stored `S`, `M`, `L`, `XL` order. Edit `inventory/inventory.json` in Azurite Storage Explorer and call the endpoint again to verify updated quantities. An unknown product returns HTTP 404. If storage is unavailable, the endpoint returns HTTP 503 with a safe error rather than reporting zero stock.
+The anonymous `GET /api/inventory/{productId}` endpoint returns a product name and generic variant DTOs. For `tacc-shirt`, variants are returned in their stored product-record order (currently `S`, `M`, `L`, `XL`, `XXL`). Edit `inventory/inventory.json` in Azurite Storage Explorer and call the endpoint again to verify updated quantities. An unknown product returns HTTP 404. If storage is unavailable, the endpoint returns HTTP 503 with a safe error rather than reporting zero stock.
 
 `GET /api/inventory/{productId}` is anonymous and read-only. It remains the public shop API and does not require a bearer token. Azurite supplies Blob Storage locally; Azure Blob Storage supplies it in production.
 
@@ -165,6 +158,27 @@ Use that ETag unchanged with a complete variant state when sending PUT:
 Every quantity must be a non-negative integer. Submitted variants must exactly match the existing variant set. PUT conditionally writes the complete `inventory.json` document using the ETag while changing only the requested product, so other products are preserved. If another writer changes the blob first, the API returns `409 Conflict`; reload with GET and retry. Unknown products return `404`, invalid data returns `400`, and storage failures return a safe `503`. A successful PUT returns the new state and ETag.
 
 Successful changes are structured-log events containing the admin `oid` (or `sub`), product ID, before/after quantities, and Function invocation ID. Tokens, authorization headers, and secrets are not logged.
+
+## Stripe checkout webhook
+
+Configure Stripe to send `checkout.session.completed` events to:
+
+```text
+https://<YOUR_FUNCTION_APP>.azurewebsites.net/api/stripe/webhook
+```
+
+For local forwarding, the route is `http://localhost:7071/api/stripe/webhook`. The endpoint uses Stripe.net's `EventUtility.ConstructEvent` with the `Stripe-Signature` header and `Stripe__WebhookSecret`; invalid signatures receive HTTP 400. It acknowledges valid but unsupported events and duplicate event IDs with HTTP 200 so Stripe does not retry intentional no-ops. A processing failure receives HTTP 500, allowing Stripe to retry.
+
+For a completed checkout, the API retrieves every Checkout Session line item using `Stripe__SecretKey`, maps its `price_...` ID (or, when necessary, `prod_...`) to a record in `inventory.json`, and subtracts the full line-item quantity. Unknown products are logged and skipped; a quantity larger than current inventory is logged as a shortfall and clamps that record to zero rather than allowing a negative value.
+
+The inventory adjustment and the event ID are saved in one `If-Match` Blob ETag write. A conditional-write conflict reloads and retries the checkout up to five times; a retry then sees the already-recorded ID if another instance completed it. This protects concurrent checkouts and Stripe retries without a separate database.
+
+Add these private Function App settings (or local-only values) and never commit real values:
+
+```text
+Stripe__SecretKey=sk_...
+Stripe__WebhookSecret=whsec_...
+```
 
 ## Testing authenticated admin endpoints locally
 

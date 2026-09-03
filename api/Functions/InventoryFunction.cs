@@ -60,15 +60,15 @@ public sealed class InventoryFunction(
 
     private static ProductInventoryResponse CreateResponse(ProductInventoryResult result)
     {
-        var variants = result.Product.Variants
+        var variants = result.Variants
             .Select(variant => new VariantInventoryResponse(
-                variant.Key,
-                variant.Value.Quantity))
+                variant.VariantId,
+                variant.Quantity))
             .ToList();
 
         return new ProductInventoryResponse(
             result.ProductId,
-            result.Product.Name,
+            result.Name,
             variants);
     }
 }

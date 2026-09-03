@@ -164,11 +164,11 @@ public sealed class AdminInventoryFunction(
     private static AdminProductInventoryResponse CreateResponse(ProductInventoryResult result) =>
         new(
             result.ProductId,
-            result.Product.Name,
+            result.Name,
             result.ETag.ToString(),
-            result.Product.Variants.Select(variant => new VariantInventoryResponse(
-                variant.Key,
-                variant.Value.Quantity)).ToList());
+            result.Variants.Select(variant => new VariantInventoryResponse(
+                variant.VariantId,
+                variant.Quantity)).ToList());
 
     private static async Task<HttpResponseData> WriteJsonAsync(
         HttpRequestData request,

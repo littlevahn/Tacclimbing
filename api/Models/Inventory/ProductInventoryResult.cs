@@ -4,5 +4,6 @@ namespace Tacc.Api.Models.Inventory;
 
 public sealed record ProductInventoryResult(
     string ProductId,
-    InventoryProduct Product,
+    string Name,
+    IReadOnlyList<InventoryVariant> Variants,
     ETag ETag);

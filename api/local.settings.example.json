@@ -8,6 +8,7 @@
     "AllowedOrigins__1": "https://localhost:7001",
     "BlobStorage__ConnectionString": "<not-configured>",
     "Stripe__SecretKey": "<not-configured>",
+    "Stripe__WebhookSecret": "<not-configured>",
     "Entra__TenantId": "YOUR_WORKFORCE_TENANT_ID",
     "Entra__ClientId": "YOUR_API_APPLICATION_CLIENT_ID",
     "Entra__Authority": "https://login.microsoftonline.com/YOUR_TENANT_ID/v2.0",

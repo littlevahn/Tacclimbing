@@ -13,4 +13,9 @@ public interface IInventoryService
         string expectedETag,
         IReadOnlyDictionary<string, int> quantities,
         CancellationToken cancellationToken = default);
+
+    Task<StripeInventoryUpdateResult> ProcessStripeCheckoutAsync(
+        string stripeEventId,
+        IReadOnlyList<PurchasedStripeLineItem> lineItems,
+        CancellationToken cancellationToken = default);
 }
