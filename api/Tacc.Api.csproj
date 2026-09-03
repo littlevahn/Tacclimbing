@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <AzureFunctionsVersion>v4</AzureFunctionsVersion>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>00f7a4a9-c565-42b3-9059-0712fcfca4b6</UserSecretsId>
+    <AzuriteWorkspace>$(MSBuildProjectDirectory)\..\.azurite</AzuriteWorkspace>
+    <!-- Ensure Visual Studio invokes the startup target on every local F5, including after a reboot. -->
+    <DisableFastUpToDateCheck Condition="'$(Configuration)' == 'Debug' and '$(OS)' == 'Windows_NT'">true</DisableFastUpToDateCheck>
+  </PropertyGroup>
+
+  <Target
+    Name="StartAzuriteForLocalDevelopment"
+    BeforeTargets="Build;Run"
+    Condition="'$(Configuration)' == 'Debug' and '$(DesignTimeBuild)' != 'true' and '$(CI)' != 'true' and '$(TF_BUILD)' != 'True' and '$(OS)' == 'Windows_NT'">
+    <Exec Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Scripts\Start-Azurite.ps1&quot; -Workspace &quot;$(AzuriteWorkspace)&quot;" />
+  </Target>
+
+  <ItemGroup>
+    <None Include="local.settings.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Data.Tables" Version="12.11.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
+    <PackageReference Include="Azure.Storage.Files.Shares" Version="12.27.1" />
+    <PackageReference Include="Azure.Storage.Queues" Version="12.27.1" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.3.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Blobs" Version="6.8.1" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues" Version="5.5.4" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Azure" Version="1.14.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.9" />
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.22.0" />
+    <PackageReference Include="Stripe.net" Version="52.2.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
+  </ItemGroup>
+
+</Project>
