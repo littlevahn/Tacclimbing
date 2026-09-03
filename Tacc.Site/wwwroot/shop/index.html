@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Shop TACC Surface Lock and the TACC Shirt, with live shirt size availability for S, M, L, and XL.">
+  <meta name="description" content="Shop TACC Surface Lock and the TACC Shirt, with live shirt size availability.">
   <meta name="author" content="TACC">
   <meta name="robots" content="index, follow">
   <meta property="og:title" content="TACC Shop | Climbing Performance Gear">
@@ -17,9 +17,9 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
   <link rel="stylesheet" href="../assets/css/styles.css?v=20260823-2">
-  <script src="../assets/js/config.js?v=20260816-1" defer></script>
+  <script src="../assets/js/config.js?v=20260902-1" defer></script>
   <script src="../assets/js/site.js?v=20260815-4" defer></script>
-  <script src="../assets/js/shop.js?v=20260823-1" defer></script>
+  <script src="../assets/js/shop.js?v=20260902-2" defer></script>
 </head>
 
 <body class="internal-page shop-page">
@@ -85,8 +85,7 @@
             <div class="product-code-line"><span>Product ID</span><strong>tacc-shirt</strong></div>
             <p class="section-kicker">Performance Apparel</p>
             <h3 id="shirt-title">TACC Shirt</h3>
-            <!-- TODO: Replace placeholder shirt price with final approved price -->
-            <p class="shop-product-price">Price coming soon</p>
+            <p class="shop-product-price">Price shown at checkout</p>
             <p class="shop-product-description">The first TACC apparel release. A clean technical layer built to represent the work.</p>
 
             <div class="inventory-panel">
@@ -97,33 +96,12 @@
 
               <fieldset class="size-selector" disabled data-size-selector>
                 <legend class="visually-hidden">TACC Shirt size</legend>
-                <div class="size-options">
-                  <div class="size-option">
-                    <button type="button" class="size-button" data-variant-id="S" aria-pressed="false"
-                      aria-describedby="stock-S" disabled>S</button>
-                    <span class="stock-message is-loading" id="stock-S" data-stock-message>Checking availability&hellip;</span>
-                  </div>
-                  <div class="size-option">
-                    <button type="button" class="size-button" data-variant-id="M" aria-pressed="false"
-                      aria-describedby="stock-M" disabled>M</button>
-                    <span class="stock-message is-loading" id="stock-M" data-stock-message>Checking availability&hellip;</span>
-                  </div>
-                  <div class="size-option">
-                    <button type="button" class="size-button" data-variant-id="L" aria-pressed="false"
-                      aria-describedby="stock-L" disabled>L</button>
-                    <span class="stock-message is-loading" id="stock-L" data-stock-message>Checking availability&hellip;</span>
-                  </div>
-                  <div class="size-option">
-                    <button type="button" class="size-button" data-variant-id="XL" aria-pressed="false"
-                      aria-describedby="stock-XL" disabled>XL</button>
-                    <span class="stock-message is-loading" id="stock-XL" data-stock-message>Checking availability&hellip;</span>
-                  </div>
-                </div>
+                <div class="size-options" data-size-options></div>
               </fieldset>
 
-              <button type="button" class="button checkout-button" data-checkout-button disabled>Checkout</button>
+              <button type="button" class="button checkout-button" data-checkout-button disabled>Checkout with Stripe</button>
               <p class="checkout-status" data-checkout-status role="status" aria-live="polite">Choose a size to continue.</p>
-              <p class="phase-note">Checkout opens in a future release. No payment will be started on this page.</p>
+              <p class="phase-note">Secure payment is handled by Stripe. Shipping is calculated according to the available checkout options.</p>
             </div>
           </div>
         </article>
