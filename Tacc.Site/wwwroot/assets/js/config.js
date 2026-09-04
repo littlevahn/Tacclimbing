@@ -3,8 +3,8 @@
   const isLocalDevelopment = localDevelopmentHosts.has(window.location.hostname);
   const isDirectFilePreview = window.location.protocol === 'file:';
 
-  // Production API requests are served by the Azure Function App, not GitHub Pages.
-  const productionApiBaseUrl = 'https://tacc-prod-rg.azurewebsites.net';
+  // API bases include the Azure Functions route prefix.
+  const productionApiBaseUrl = 'https://tacc-prod-rg-duaebkh7cwfef9e9.westus3-01.azurewebsites.net/api';
 
   // These identifiers are public SPA configuration values, not secrets.
   // TODO: Replace with the TACC Admin Application (client) ID.
@@ -15,9 +15,9 @@
     const inventoryManageScope = 'api://33282eb4-338c-4bac-a4cd-276d3ab4a6f1/Inventory.Manage';
 
   const apiBaseUrl = isDirectFilePreview
-    ? 'http://localhost:7071'
+    ? 'http://localhost:7071/api'
     : isLocalDevelopment
-      ? `http://${window.location.hostname}:7071`
+      ? `http://${window.location.hostname}:7071/api`
       : productionApiBaseUrl;
 
   window.TACC_CONFIG = Object.freeze({

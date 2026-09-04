@@ -102,7 +102,7 @@
   };
 
   const getInventoryEndpoint = () =>
-    `${getApiBaseUrl()}/api/inventory/${encodeURIComponent(PRODUCT_ID)}`;
+    `${getApiBaseUrl()}/inventory/${encodeURIComponent(PRODUCT_ID)}`;
 
   const parseInventoryResponse = (payload) => {
     if (!payload || typeof payload !== 'object' || payload.productId !== PRODUCT_ID || !Array.isArray(payload.variants)) {

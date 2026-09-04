@@ -381,7 +381,7 @@ import {
   };
 
   const getInventoryEndpoint = () =>
-    `${config.apiBaseUrl}/api/admin/inventory/${encodeURIComponent(config.productId)}`;
+    `${config.apiBaseUrl}/admin/inventory/${encodeURIComponent(config.productId)}`;
 
   const confirmDiscardChanges = () =>
     !state.dirty || window.confirm('Discard your unsaved inventory changes?');
