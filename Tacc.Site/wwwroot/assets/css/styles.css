@@ -1664,10 +1664,12 @@ details p {
 @media (max-width: 760px) {
   .site-nav-shell {
     min-height: 64px;
+    gap: 0;
   }
 
   .menu-toggle {
     display: inline-flex;
+    margin-left: auto;
   }
 
   .site-header nav {
