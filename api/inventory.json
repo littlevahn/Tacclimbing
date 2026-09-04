@@ -14,7 +14,7 @@
       "size": "M",
       "stripeProductId": "prod_VBeS1duwWzeFTi",
       "stripePriceId": "price_1UBH9ZRcg4AzrqP8NdSS6N45",
-      "quantity": 12
+      "quantity": 2
     },
 	{
       "key": "tacc-shirt-large",
@@ -30,7 +30,7 @@
       "size": "XL",
       "stripeProductId": "prod_VBeUqRoSpijSck",
       "stripePriceId": "price_1UBHCzRcg4AzrqP8aWaGeYXT",
-      "quantity": 2
+      "quantity": 8
     },
 	{
       "key": "tacc-shirt-xxl",
@@ -38,7 +38,7 @@
       "size": "XXL",
       "stripeProductId": "prod_VBeXJWA58QhOEY",
       "stripePriceId": "price_1UBHELRcg4AzrqP8HLO0WXUA",
-      "quantity": 2
+      "quantity": 8
     }
   ]
 }

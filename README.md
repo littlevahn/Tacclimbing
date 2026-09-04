@@ -110,7 +110,10 @@ The shop requests inventory once per page load:
 GET http://localhost:7071/api/inventory/tacc-shirt
 ```
 
-`Tacc.Site/wwwroot/assets/js/config.js` centralizes the public API origin. Local `localhost` and `127.0.0.1` pages automatically use the Functions Core Tools port. For production on a separate Function App, replace the production empty value with the approved public HTTPS origin. Never put credentials or secrets in frontend configuration.
+The shirt size controls are generated from the API's `variants` array in stored order. Adding another valid
+`tacc-shirt-*` inventory record therefore adds its size to the public shop without an HTML or JavaScript size-list change.
+
+`Tacc.Site/wwwroot/assets/js/config.js` centralizes the public API base URL. Local `localhost` and `127.0.0.1` pages automatically use the Functions Core Tools port, while production uses the configured Azure Function App. Never put credentials or secrets in frontend configuration.
 
 Inventory rules remain:
 

@@ -1,6 +1,5 @@
 (() => {
   const PRODUCT_ID = 'tacc-shirt';
-  const DISPLAY_VARIANT_IDS = Object.freeze(['S', 'M', 'L', 'XL']);
   const REQUEST_TIMEOUT_MS = 8000;
 
   const setupProductMedia = () => {
@@ -57,14 +56,9 @@
   }
 
   const sizeSelector = productElement.querySelector('[data-size-selector]');
-  const sizeButtons = new Map(
-    [...productElement.querySelectorAll('[data-variant-id]')]
-      .map((button) => [button.dataset.variantId, button])
-  );
-  const stockMessages = new Map(
-    [...productElement.querySelectorAll('[data-variant-id]')]
-      .map((button) => [button.dataset.variantId, document.getElementById(`stock-${button.dataset.variantId}`)])
-  );
+  const sizeOptions = productElement.querySelector('[data-variant-list]');
+  const sizeButtons = new Map();
+  const stockMessages = new Map();
   const inventorySummary = productElement.querySelector('[data-inventory-summary]');
   const checkoutButton = productElement.querySelector('[data-checkout-button]');
   const checkoutStatus = productElement.querySelector('[data-checkout-status]');
@@ -105,18 +99,22 @@
     `${getApiBaseUrl()}/inventory/${encodeURIComponent(PRODUCT_ID)}`;
 
   const parseInventoryResponse = (payload) => {
-    if (!payload || typeof payload !== 'object' || payload.productId !== PRODUCT_ID || !Array.isArray(payload.variants)) {
+    if (!payload || typeof payload !== 'object' || payload.productId !== PRODUCT_ID ||
+      !Array.isArray(payload.variants) || payload.variants.length === 0) {
       throw new TypeError('Inventory response has an unexpected product structure.');
     }
 
     const variants = new Map();
 
     payload.variants.forEach((variant) => {
-      if (!variant || typeof variant !== 'object' || typeof variant.variantId !== 'string') {
+      if (!variant || typeof variant !== 'object' ||
+        typeof variant.variantId !== 'string' || variant.variantId.trim() === '') {
         throw new TypeError('Inventory response contains a malformed variant.');
       }
 
-      if (variants.has(variant.variantId)) {
+      const variantId = variant.variantId.trim();
+
+      if (variants.has(variantId)) {
         throw new TypeError('Inventory response contains duplicate variants.');
       }
 
@@ -124,26 +122,55 @@
         throw new TypeError('Inventory response contains an invalid quantity.');
       }
 
-      variants.set(variant.variantId, {
-        variantId: variant.variantId,
+      variants.set(variantId, {
+        variantId,
         quantity: variant.quantity
       });
-    });
-
-    DISPLAY_VARIANT_IDS.forEach((variantId) => {
-      if (!variants.has(variantId)) {
-        throw new TypeError('Inventory response is missing a required shirt variant.');
-      }
     });
 
     return variants;
   };
 
+  const createVariantOption = (variant, index) => {
+    const option = document.createElement('div');
+    option.className = 'size-option';
+
+    const messageId = `stock-variant-${index}`;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'size-button';
+    button.dataset.variantId = variant.variantId;
+    button.setAttribute('aria-pressed', 'false');
+    button.setAttribute('aria-describedby', messageId);
+    button.disabled = true;
+    button.textContent = variant.variantId;
+
+    const message = document.createElement('span');
+    message.id = messageId;
+    message.className = 'stock-message is-loading';
+    message.dataset.stockMessage = '';
+    message.textContent = 'Checking availability…';
+
+    button.addEventListener('click', () => setSelectedVariant(variant.variantId));
+    option.append(button, message);
+    sizeButtons.set(variant.variantId, button);
+    stockMessages.set(variant.variantId, message);
+    return option;
+  };
+
+  const renderVariantOptions = () => {
+    sizeButtons.clear();
+    stockMessages.clear();
+    sizeOptions.replaceChildren(
+      ...[...state.variants.values()].map((variant, index) => createVariantOption(variant, index))
+    );
+  };
+
   const setSelectedVariant = (variantId) => {
     state.selectedVariantId = variantId;
 
-    DISPLAY_VARIANT_IDS.forEach((currentVariantId) => {
-      sizeButtons.get(currentVariantId)?.setAttribute('aria-pressed', String(currentVariantId === variantId));
+    sizeButtons.forEach((button, currentVariantId) => {
+      button.setAttribute('aria-pressed', String(currentVariantId === variantId));
     });
 
     const selectedVariant = state.variants.get(variantId);
@@ -165,11 +192,11 @@
 
   const renderReadyState = () => {
     state.inventoryStatus = 'ready';
+    renderVariantOptions();
     inventorySummary.textContent = 'Availability confirmed';
     sizeSelector.disabled = false;
 
-    DISPLAY_VARIANT_IDS.forEach((variantId) => {
-      const variant = state.variants.get(variantId);
+    state.variants.forEach((variant, variantId) => {
       const button = sizeButtons.get(variantId);
       const message = stockMessages.get(variantId);
 
@@ -183,20 +210,14 @@
   const renderFailureState = () => {
     state.inventoryStatus = 'error';
     state.variants = new Map();
+    state.selectedVariantId = null;
+    sizeButtons.clear();
+    stockMessages.clear();
+    sizeOptions.replaceChildren();
     inventorySummary.textContent = 'Availability will be updated soon';
-    sizeSelector.disabled = false;
+    sizeSelector.disabled = true;
     checkoutButton.disabled = true;
     checkoutStatus.textContent = 'Checkout is unavailable while availability is being updated.';
-
-    DISPLAY_VARIANT_IDS.forEach((variantId) => {
-      const button = sizeButtons.get(variantId);
-      const message = stockMessages.get(variantId);
-
-      button.disabled = false;
-      message.textContent = 'More coming soon';
-      message.classList.remove('is-loading');
-      message.classList.add('is-unavailable');
-    });
   };
 
   const loadInventory = async () => {
@@ -224,10 +245,6 @@
       window.clearTimeout(timeoutId);
     }
   };
-
-  sizeButtons.forEach((button, variantId) => {
-    button.addEventListener('click', () => setSelectedVariant(variantId));
-  });
 
   checkoutButton.addEventListener('click', () => {
     if (checkoutButton.disabled) {
