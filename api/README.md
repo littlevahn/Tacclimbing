@@ -189,8 +189,12 @@ Stripe__WebhookSecret=whsec_...
 Stripe__CheckoutSuccessUrl=https://tacclimbing.com/shop/?checkout=success
 Stripe__CheckoutCancelUrl=https://tacclimbing.com/shop/?checkout=cancelled
 Stripe__AllowedShippingCountries__0=US
-Stripe__ShippingRateId=shr_... # optional; omit only when no separate shipping charge applies
+Stripe__ShippingRateId=shr_... # required for the advertised $5 TACC Shirt shipping charge
 ```
+
+The Stripe Prices referenced by the `tacc-shirt-*` inventory records must each be configured for a $30.00 USD
+unit amount, and `Stripe__ShippingRateId` must reference a fixed $5.00 USD shipping rate. These trusted amounts
+are configured in Stripe rather than accepted from the browser.
 
 ## Testing authenticated admin endpoints locally
 
