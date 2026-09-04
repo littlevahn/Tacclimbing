@@ -3,8 +3,8 @@
   const isLocalDevelopment = localDevelopmentHosts.has(window.location.hostname);
   const isDirectFilePreview = window.location.protocol === 'file:';
 
-  // TODO: Replace with the public HTTPS origin of the deployed Azure Function App.
-  const productionApiBaseUrl = '';
+  // Production API requests are served by the Azure Function App, not GitHub Pages.
+  const productionApiBaseUrl = 'https://tacc-prod-rg.azurewebsites.net';
 
   // These identifiers are public SPA configuration values, not secrets.
   // TODO: Replace with the TACC Admin Application (client) ID.
