@@ -122,7 +122,9 @@ Inventory rules remain:
 - 1–5: exact quantity remaining
 - 0 or unknown API status: `More coming soon`
 
-The error state remains internally distinct from real zero inventory. Phase 4 performs no checkout request, inventory write, polling, or payment processing.
+The error state remains internally distinct from real zero inventory. For an available selected size, the shop posts
+the product and variant IDs to `POST /api/stripe/checkout` and redirects only to the validated hosted Stripe Checkout URL
+returned by the API. Stripe Price IDs and secret configuration remain server-side.
 
 ## Inventory admin page
 
@@ -197,7 +199,7 @@ See `api/README.md` for Blob Storage, Azurite, inventory data, and backend confi
 - Keep `Tacc.Site` free of application logic and backend frameworks.
 - Keep `local.settings.json`, credentials, and production secrets out of source control.
 - Keep admin authentication and authorization enforced by Microsoft Entra and the API; hiding `/admin/` is not a security control.
-- Do not add Stripe checkout changes, inventory decrement/reservation, or monitoring alerts in this phase.
+- Keep Stripe Price IDs, secret keys, webhook secrets, and trusted checkout configuration server-side.
 
 ## Monitoring TODO
 

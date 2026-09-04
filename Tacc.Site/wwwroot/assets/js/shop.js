@@ -1,6 +1,7 @@
 (() => {
   const PRODUCT_ID = 'tacc-shirt';
   const REQUEST_TIMEOUT_MS = 8000;
+  const CHECKOUT_TIMEOUT_MS = 15000;
 
   const setupProductMedia = () => {
     document.querySelectorAll('[data-product-media]').forEach((gallery) => {
@@ -66,7 +67,8 @@
   const state = {
     inventoryStatus: 'loading',
     variants: new Map(),
-    selectedVariantId: null
+    selectedVariantId: null,
+    checkoutPending: false
   };
 
   const getStockMessage = (quantity) => {
@@ -97,6 +99,8 @@
 
   const getInventoryEndpoint = () =>
     `${getApiBaseUrl()}/inventory/${encodeURIComponent(PRODUCT_ID)}`;
+
+  const getCheckoutEndpoint = () => `${getApiBaseUrl()}/stripe/checkout`;
 
   const parseInventoryResponse = (payload) => {
     if (!payload || typeof payload !== 'object' || payload.productId !== PRODUCT_ID ||
@@ -167,6 +171,10 @@
   };
 
   const setSelectedVariant = (variantId) => {
+    if (state.checkoutPending) {
+      return;
+    }
+
     state.selectedVariantId = variantId;
 
     sizeButtons.forEach((button, currentVariantId) => {
@@ -186,7 +194,86 @@
     } else if (selectedVariant.quantity === 0) {
       checkoutStatus.textContent = `${variantId} selected. More coming soon.`;
     } else {
-      checkoutStatus.textContent = `${variantId} selected. Checkout integration is coming in the next phase.`;
+      checkoutStatus.textContent = `${variantId} selected. Ready for secure checkout.`;
+    }
+  };
+
+  const setCheckoutPending = (isPending) => {
+    state.checkoutPending = isPending;
+    sizeButtons.forEach((button) => {
+      button.disabled = isPending;
+    });
+
+    const selectedVariant = state.variants.get(state.selectedVariantId);
+    checkoutButton.disabled = isPending || state.inventoryStatus !== 'ready' ||
+      !selectedVariant || selectedVariant.quantity <= 0;
+    checkoutButton.textContent = isPending ? 'Opening checkout…' : 'Checkout';
+  };
+
+  const getCheckoutUrl = (payload) => {
+    if (!payload || typeof payload !== 'object' || typeof payload.url !== 'string') {
+      throw new TypeError('Checkout response did not include a URL.');
+    }
+
+    const checkoutUrl = new URL(payload.url);
+    if (checkoutUrl.protocol !== 'https:' ||
+      (checkoutUrl.hostname !== 'stripe.com' && !checkoutUrl.hostname.endsWith('.stripe.com'))) {
+      throw new TypeError('Checkout response included an unsupported URL.');
+    }
+
+    return checkoutUrl.href;
+  };
+
+  const startCheckout = async () => {
+    const selectedVariant = state.variants.get(state.selectedVariantId);
+    if (state.checkoutPending || state.inventoryStatus !== 'ready' ||
+      !selectedVariant || selectedVariant.quantity <= 0) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), CHECKOUT_TIMEOUT_MS);
+    setCheckoutPending(true);
+    checkoutStatus.textContent = `Opening secure checkout for size ${selectedVariant.variantId}…`;
+
+    try {
+      const response = await fetch(getCheckoutEndpoint(), {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          productId: PRODUCT_ID,
+          variantId: selectedVariant.variantId
+        }),
+        cache: 'no-store',
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          selectedVariant.quantity = 0;
+          const stockMessage = stockMessages.get(selectedVariant.variantId);
+          stockMessage.textContent = getStockMessage(0);
+          stockMessage.classList.add('is-unavailable');
+          throw new Error('The selected size just sold out. Please choose another size.');
+        }
+
+        throw new Error('Secure checkout could not be started. Please try again.');
+      }
+
+      const checkoutUrl = getCheckoutUrl(await response.json());
+      window.location.assign(checkoutUrl);
+    } catch (error) {
+      const message = error?.name === 'AbortError'
+        ? 'Checkout took too long to respond. Please try again.'
+        : error?.message || 'Secure checkout could not be started. Please try again.';
+      checkoutStatus.textContent = message;
+      console.error('Unable to start TACC checkout.', error);
+      setCheckoutPending(false);
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   };
 
@@ -246,13 +333,7 @@
     }
   };
 
-  checkoutButton.addEventListener('click', () => {
-    if (checkoutButton.disabled) {
-      return;
-    }
-
-    checkoutStatus.textContent = `${state.selectedVariantId} selected. Checkout is not active yet.`;
-  });
+  checkoutButton.addEventListener('click', startCheckout);
 
   loadInventory();
 })();
