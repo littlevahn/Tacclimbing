@@ -1677,20 +1677,34 @@ details p {
   .site-nav-list {
     position: absolute;
     top: 100%;
-    right: 12px;
-    left: 12px;
-    display: none;
+    right: 0;
+    left: auto;
+    display: grid;
+    width: min(82vw, 320px);
+    max-height: calc(100vh - 64px);
+    max-height: calc(100svh - 64px);
     align-items: stretch;
     gap: 0;
     padding: 8px 18px 14px;
+    overflow-y: auto;
     border: 1px solid var(--line);
     border-top: 3px solid var(--blue);
     background: rgba(7, 9, 11, 0.99);
     box-shadow: 0 24px 48px rgba(0, 0, 0, 0.52);
+    opacity: 0;
+    pointer-events: none;
+    text-align: right;
+    transform: translateX(calc(100% + 16px));
+    visibility: hidden;
+    transition: opacity 180ms ease, transform 220ms ease, visibility 0s linear 220ms;
   }
 
   .site-nav-list.is-open {
-    display: grid;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+    visibility: visible;
+    transition-delay: 0s;
   }
 
   .site-nav-list a {
@@ -1703,8 +1717,9 @@ details p {
   }
 
   .site-nav-list a::after {
-    right: auto;
+    right: 2px;
     bottom: 8px;
+    left: auto;
     width: 34px;
   }
 
