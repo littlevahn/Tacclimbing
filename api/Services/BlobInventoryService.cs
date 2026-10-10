@@ -98,6 +98,10 @@ public sealed class BlobInventoryService(
         {
             throw;
         }
+        catch (RequestFailedException exception) when (exception.Status == 412)
+        {
+            throw new InventoryConcurrencyException("Inventory changed since it was loaded.", exception);
+        }
         catch (RequestFailedException exception)
         {
             logger.LogError(exception, "Blob Storage failed while updating inventory (status {Status}).", exception.Status);

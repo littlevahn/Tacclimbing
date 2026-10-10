@@ -1,10 +1,10 @@
 # TACC API
 
-`Tacc.Api` is the .NET 9 isolated-worker Azure Functions backend for TACC. The public website remains static. Inventory reads are backed by private Azure Blob Storage, while admin-only inventory updates are protected by a Microsoft Entra workforce tenant.
+`Tacc.Api` is the .NET 9 isolated-worker Azure Functions backend for TACC. The public website remains static. Inventory reads are backed by private Azure Blob Storage, while admin-only inventory updates are protected by locally signed single-administrator sessions.
 
 ## Frontend relationship
 
-The static website lives under `Tacc.Site/wwwroot/`. `/shop/` calls anonymous `GET /api/inventory/tacc-shirt`, while `/admin/` uses MSAL Browser and the protected admin endpoints. The frontend API and public Entra identifiers are configured in `Tacc.Site/wwwroot/assets/js/config.js`; no credentials belong in that public file.
+The static website lives under `Tacc.Site/wwwroot/`. `/shop/` calls anonymous `GET /api/inventory/tacc-shirt`, while `/admin/` uses username/password login and the protected admin endpoints. The frontend API base URL and product ID are configured in `Tacc.Site/wwwroot/assets/js/config.js`; no credentials belong in that public file.
 
 The public endpoint contract remains unchanged. Admin writes and Stripe checkout processing use conditional Blob ETags; the webhook decrements inventory only after a signed `checkout.session.completed` event. A future phase should alert the site owner/developer when the public website cannot retrieve inventory from this API.
 
@@ -92,20 +92,13 @@ The anonymous `GET /api/inventory/{productId}` endpoint returns a product name a
 
 ## Configuration and CORS
 
-.NET configuration reads Function App settings and local `Values` as environment variables. Double underscores represent nested keys. The admin API requires these non-secret Entra application settings:
+.NET configuration reads Function App settings and local `Values` as environment variables. Configure `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` and `ADMIN_SESSION_SECRET` privately. Run the offline generator from the repository root:
 
-```text
-Entra__TenantId=<workforce tenant ID>
-Entra__ClientId=<API application client ID>
-Entra__Authority=https://login.microsoftonline.com/<tenant ID>/v2.0
-Entra__Audience=api://<API application client ID>
-Entra__AdminRole=Tacc.Inventory.Admin
-Entra__AdminScope=Inventory.Manage
+```powershell
+powershell.exe -NoProfile -File .\api\Scripts\New-AdminCredentials.ps1 -Username owner
 ```
 
-`Entra__Audience` must match the `aud` claim issued for the API access token. The API requires both the delegated `Inventory.Manage` value in the token's `scp` claim and the `Tacc.Inventory.Admin` value in its `roles` claim. Configure the scope and role on the TACC API registration, grant the TACC Admin SPA delegated permission, and assign the app role to permitted users/groups or B2B guests. Tenant/application IDs are configuration, but secrets must stay in local settings, Function App settings, or Key Vault and must never be committed.
-
-For the Visual Studio local host, `local.settings.json` should contain the same `Host` section provided by `local.settings.example.json`:
+Copy its output into Azure application settings or ignored `api/local.settings.json`; never commit real values. Preserve `InventoryStorageConnection`, `AzureWebJobsStorage`, all Stripe settings and the existing local `Host` section:
 
 ```json
 "Host": {
@@ -115,9 +108,11 @@ For the Visual Studio local host, `local.settings.json` should contain the same 
 }
 ```
 
-This keeps the API on `http://localhost:7071` and allows only the two configured `Tacc.Site` development origins. The committed example contains no secrets; the real `local.settings.json` remains ignored. Production CORS is configured separately on the Azure Function App and must not use a wildcard.
+Production CORS is configured separately on the Function App. Allow exactly `https://tacclimbing.com` and approved additional origins, with GET/PUT/POST and host-handled OPTIONS, plus `Authorization` and `Content-Type` headers. Do not use wildcard or credentialed CORS. The `AllowedOrigins__*` example entries are not consumed by application code.
 
-In Azure, configure CORS on the Function App for the exact production TACC origin (and any separately required staging origin). Do not use `*` in production. CORS is an environment/host setting, not hard-coded application behavior. The approved browser origins must allow the `Authorization` and `Content-Type` request headers so the admin frontend can send bearer-authenticated GET and PUT requests.
+All HTTP triggers retain `AuthorizationLevel.Anonymous`; application middleware enforces administrator access. Check Azure Easy Auth permits requests to reach the application without conflicting Entra redirects/token rejection, especially login/public/Stripe endpoints. Do not distribute Function keys to the browser.
+
+Missing or invalid authentication settings return 503 for admin requests without stopping public inventory or Stripe. See [administrator authentication operations](../docs/AdminAuthentication.md) for the hash/token format, credential and session-secret rotation, client-IP trust, throttling limitations, tests, and deployment instructions.
 
 ## Admin inventory API
 
@@ -128,7 +123,7 @@ GET /api/admin/inventory/{productId}
 PUT /api/admin/inventory/{productId}
 ```
 
-Both require a valid bearer access token issued by the configured Microsoft Entra workforce authority, the `Inventory.Manage` delegated scope (or the scope set in `Entra__AdminScope`), and the `Tacc.Inventory.Admin` app role (or the role set in `Entra__AdminRole`). Authentication is evaluated only for the admin functions; health and the public inventory endpoint remain anonymous. An absent or invalid bearer token receives `401 Unauthorized`; a valid token without either required authorization claim receives `403 Forbidden`.
+Both require a valid local HS256 token from `POST /api/admin/login`, supplied in the `Authorization: Bearer` header. Tokens expire exactly eight hours after issue with zero expiration clock skew; the API validates issuer, audience, signature, algorithm and administrator identity. Missing/invalid tokens return 401. Authentication applies explicitly to these two functions; health, public inventory, checkout and signed Stripe webhooks remain independent.
 
 Admin GET returns the product state and an opaque ETag:
 
@@ -157,7 +152,7 @@ Use that ETag unchanged with a complete variant state when sending PUT:
 
 Every quantity must be a non-negative integer. Submitted variants must exactly match the existing variant set. PUT conditionally writes the complete `inventory.json` document using the ETag while changing only the requested product, so other products are preserved. If another writer changes the blob first, the API returns `409 Conflict`; reload with GET and retry. Unknown products return `404`, invalid data returns `400`, and storage failures return a safe `503`. A successful PUT returns the new state and ETag.
 
-Successful changes are structured-log events containing the admin `oid` (or `sub`), product ID, before/after quantities, and Function invocation ID. Tokens, authorization headers, and secrets are not logged.
+Successful changes are structured-log events containing the administrator username in `sub`, product ID, before/after quantities, and Function invocation ID. Tokens, authorization headers, and secrets are not logged.
 
 ## Stripe checkout webhook
 
@@ -196,14 +191,14 @@ The Stripe Prices referenced by the `tacc-shirt-*` inventory records must each b
 unit amount, and `Stripe__ShippingRateId` must reference a fixed $5.00 USD shipping rate. These trusted amounts
 are configured in Stripe rather than accepted from the browser.
 
-## Testing authenticated admin endpoints locally
+## Testing administrator authentication
 
-There is no local authentication bypass. Configure Entra values in ignored `local.settings.json`, obtain an API access token containing both the delegated `Inventory.Manage` scope and the assigned `Tacc.Inventory.Admin` role, and call the Functions host:
+From the repository root, run `dotnet test tests/Tacc.Api.Tests/Tacc.Api.Tests.csproj -c Release`. The isolated tests cover login and error statuses, eight-hour JWTs, invalid/expired tokens, both protected routes, missing settings, throttling/recovery, inventory contracts, conditional-write conflicts, public reads, signed webhooks, and Stripe service idempotency/retries. They do not use production credentials or the developer's inventory.
 
-```powershell
-$token = '<Entra API access token>'
-$headers = @{ Authorization = "Bearer $token" }
-Invoke-RestMethod http://localhost:7071/api/admin/inventory/tacc-shirt -Headers $headers
-```
+From `Tacc.Site`, run `npm.cmd run build:admin` and `npm.cmd run test:admin`. Tests exercise both source and committed bundle using a local DOM/fetch harness.
 
-Use the returned `etag` in PUT. Test without a header for `401`, and with valid tokens lacking either the delegated scope or app role for `403`. Never paste access tokens into source files, logs, or issue trackers.
+For an actual local browser check, generate private credentials, configure local settings, start the API/static host and Azurite, and visit `http://localhost:7000/admin/`. Verify login, reload/session restoration, save, stale ETag 409, logout and a signed Stripe test-mode completion. There is no authentication bypass in local development.
+
+## Runtime follow-up
+
+.NET 9 is retained in this implementation and reaches end of support **November 10, 2026**. Plan a separate supported-runtime upgrade with Azure hosting compatibility checks. [.NET support policy](https://dotnet.microsoft.com/en-us/platform/support/policy).

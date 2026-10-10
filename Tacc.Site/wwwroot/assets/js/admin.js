@@ -1,12 +1,6 @@
-import {
-  BrowserCacheLocation,
-  InteractionRequiredAuthError,
-  LogLevel,
-  PublicClientApplication
-} from '@azure/msal-browser';
-
 (() => {
   const REQUEST_TIMEOUT_MS = 10000;
+  const SESSION_KEY = 'tacc.admin.session.v1';
   const MAX_QUANTITY = 2147483647;
   const VARIANT_LABELS = Object.freeze({
     S: 'Small',
@@ -20,6 +14,9 @@ import {
       .map((element) => [element.dataset.view, element])
   );
   const signInButton = document.querySelector('[data-sign-in]');
+  const loginForm = document.querySelector('[data-login-form]');
+  const usernameInput = document.querySelector('[data-username]');
+  const passwordInput = document.querySelector('[data-password]');
   const signOutButtons = [...document.querySelectorAll('[data-sign-out]')];
   const currentUserElements = [...document.querySelectorAll('[data-current-user]')];
   const authError = document.querySelector('[data-auth-error]');
@@ -34,8 +31,8 @@ import {
   const conflictReloadButton = document.querySelector('[data-conflict-reload]');
 
   const state = {
-    msalInstance: null,
-    account: null,
+    session: null,
+    expiryTimer: null,
     inventory: null,
     originalQuantities: new Map(),
     inputs: new Map(),
@@ -62,12 +59,10 @@ import {
     }
   };
 
-  const getAdminUrl = () => new URL('./', window.location.href).href;
-
   const hasPlaceholder = (value) =>
     typeof value !== 'string' ||
     value.trim() === '' ||
-    /(?:TACC_ADMIN_CLIENT_ID|TACC_API_CLIENT_ID|TENANT_ID|AZURE_FUNCTION_API_BASE_URL)/.test(value);
+    /AZURE_FUNCTION_API_BASE_URL/.test(value);
 
   const readConfiguration = () => {
     const rootConfig = window.TACC_CONFIG;
@@ -75,10 +70,6 @@ import {
     const invalidFields = [];
 
     if (hasPlaceholder(rootConfig?.apiBaseUrl)) invalidFields.push('apiBaseUrl');
-    if (hasPlaceholder(adminConfig?.clientId)) invalidFields.push('clientId');
-    if (hasPlaceholder(adminConfig?.tenantId)) invalidFields.push('tenantId');
-    if (hasPlaceholder(adminConfig?.authority)) invalidFields.push('authority');
-    if (hasPlaceholder(adminConfig?.apiScope)) invalidFields.push('apiScope');
     if (hasPlaceholder(adminConfig?.productId)) invalidFields.push('productId');
 
     if (window.location.protocol === 'file:') {
@@ -92,9 +83,9 @@ import {
 
     try {
       const apiUrl = new URL(rootConfig.apiBaseUrl);
-      const authorityUrl = new URL(adminConfig.authority);
-
-      if (!['http:', 'https:'].includes(apiUrl.protocol) || authorityUrl.protocol !== 'https:') {
+      const localApi = ['localhost', '127.0.0.1'].includes(apiUrl.hostname);
+      if ((apiUrl.protocol !== 'https:' && !(localApi && apiUrl.protocol === 'http:')) ||
+          apiUrl.username || apiUrl.password || apiUrl.search || apiUrl.hash) {
         throw new TypeError('Admin URLs use unsupported protocols.');
       }
     } catch (error) {
@@ -104,42 +95,45 @@ import {
 
     return Object.freeze({
       apiBaseUrl: rootConfig.apiBaseUrl.trim().replace(/\/+$/, ''),
-      clientId: adminConfig.clientId.trim(),
-      tenantId: adminConfig.tenantId.trim(),
-      authority: adminConfig.authority.trim().replace(/\/+$/, ''),
-      apiScope: adminConfig.apiScope.trim(),
-      productId: adminConfig.productId.trim(),
-      redirectUri: getAdminUrl()
+      productId: adminConfig.productId.trim()
     });
   };
 
   const config = readConfiguration();
 
-  const getAccountDisplayName = (account) =>
-    account?.name?.trim() || account?.username?.trim() || 'Authenticated administrator';
-
-  const showSignedOut = (failed = false) => {
-    state.account = null;
+  const showSignedOut = (message = '') => {
+    window.clearTimeout(state.expiryTimer);
+    state.session = null;
+    try { window.sessionStorage.removeItem(SESSION_KEY); } catch { /* Storage may be disabled. */ }
+    passwordInput.value = '';
     state.inventory = null;
     state.originalQuantities = new Map();
     state.inputs = new Map();
     state.dirty = false;
-    authError.hidden = !failed;
+    authError.textContent = message;
+    authError.hidden = !message;
+    inventoryForm.hidden = true;
+    variantList.replaceChildren();
     setView('signed-out');
   };
 
-  const showUnauthorized = () => {
-    const displayName = getAccountDisplayName(state.account);
-    currentUserElements.forEach((element) => {
-      element.textContent = displayName;
-    });
-    setView('unauthorized');
+  const sessionIsValid = (session) => session &&
+    typeof session.accessToken === 'string' && session.accessToken.length > 0 && session.accessToken.length <= 4096 &&
+    typeof session.username === 'string' && session.username.length > 0 && session.username.length <= 128 &&
+    Number.isFinite(session.expiresAt) && session.expiresAt > Date.now();
+
+  const activateSession = (session) => {
+    if (!sessionIsValid(session)) throw new TypeError('Invalid session.');
+    window.clearTimeout(state.expiryTimer);
+    state.session = Object.freeze(session);
+    state.expiryTimer = window.setTimeout(() => {
+      showSignedOut('Your session expired. Please sign in again.');
+    }, Math.min(session.expiresAt - Date.now(), 2147483647));
   };
 
   const showAuthorized = () => {
-    const displayName = getAccountDisplayName(state.account);
     currentUserElements.forEach((element) => {
-      element.textContent = displayName;
+      element.textContent = state.session.username;
     });
     setView('authorized');
   };
@@ -287,62 +281,37 @@ import {
     inventoryForm.hidden = false;
   };
 
-  const getAccessToken = async (forceRefresh = false) => {
-    try {
-      const response = await state.msalInstance.acquireTokenSilent({
-        account: state.account,
-        scopes: [config.apiScope],
-        forceRefresh
-      });
-      return response.accessToken;
-    } catch (error) {
-      if (error instanceof InteractionRequiredAuthError || error?.errorCode === 'interaction_required') {
-        await state.msalInstance.acquireTokenRedirect({
-          account: state.account,
-          scopes: [config.apiScope],
-          redirectUri: config.redirectUri,
-          redirectStartPage: config.redirectUri
-        });
-        return null;
-      }
-
-      console.error('TACC admin token acquisition failed.', error);
-      throw error;
-    }
-  };
-
   const fetchWithTimeout = async (url, options) => {
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-      return await fetch(url, { ...options, signal: controller.signal });
+      return await fetch(url, { ...options, credentials: 'omit', redirect: 'error', cache: 'no-store', signal: controller.signal });
     } finally {
       window.clearTimeout(timeoutId);
     }
   };
 
   const authorizedFetch = async (url, options = {}) => {
-    const send = async (forceRefresh) => {
-      const accessToken = await getAccessToken(forceRefresh);
-      if (!accessToken) {
-        return null;
-      }
-
-      return fetchWithTimeout(url, {
+    const session = state.session;
+    if (!sessionIsValid(session)) {
+      showSignedOut('Your session expired. Please sign in again.');
+      return null;
+    }
+    const response = await fetchWithTimeout(url, {
         ...options,
         headers: {
           Accept: 'application/json',
           ...options.headers,
-          Authorization: `Bearer ${accessToken}`
+          Authorization: `Bearer ${session.accessToken}`
         },
         cache: 'no-store'
       });
-    };
-
-    let response = await send(false);
-    if (response?.status === 401) {
-      response = await send(true);
+    // Ignore an in-flight result if logout or expiration happened while waiting.
+    if (state.session !== session) return null;
+    if (response.status === 401 || !sessionIsValid(session)) {
+      showSignedOut('Your session expired or is no longer valid. Please sign in again.');
+      return null;
     }
 
     return response;
@@ -354,11 +323,10 @@ import {
         setStatus('One or more inventory quantities are invalid.', 'error');
         break;
       case 401:
-        console.error(`TACC admin ${operation} remained unauthorized after token reacquisition.`);
-        showSignedOut(true);
+        showSignedOut('Please sign in again.');
         break;
       case 403:
-        showUnauthorized();
+        setStatus('Administrator access was denied.', 'error');
         break;
       case 404:
         setStatus('The requested inventory product could not be found.', 'error');
@@ -397,6 +365,7 @@ import {
     productIdElement.textContent = `PRODUCT / ${config.productId}`;
     productNameElement.textContent = 'Loading inventory';
     setStatus('Retrieving current quantities\u2026');
+    const session = state.session;
 
     try {
       const response = await authorizedFetch(getInventoryEndpoint(), { method: 'GET' });
@@ -411,6 +380,7 @@ import {
       }
 
       const inventory = parseInventoryResponse(await response.json());
+      if (state.session !== session) return;
       renderInventory(inventory);
       setStatus('Current inventory loaded.', 'success');
     } catch (error) {
@@ -435,6 +405,7 @@ import {
 
     setBusy(true);
     setStatus('Saving inventory\u2026');
+    const session = state.session;
 
     try {
       const response = await authorizedFetch(getInventoryEndpoint(), {
@@ -457,6 +428,7 @@ import {
       }
 
       const inventory = parseInventoryResponse(await response.json());
+      if (state.session !== session) return;
       renderInventory(inventory);
       setStatus('Inventory updated.', 'success');
     } catch (error) {
@@ -468,40 +440,55 @@ import {
   };
 
   const signIn = async () => {
+    if (signInButton.disabled || !loginForm.reportValidity()) return;
     authError.hidden = true;
     signInButton.disabled = true;
-    signInButton.textContent = 'Redirecting\u2026';
+    signInButton.textContent = 'Signing in\u2026';
 
     try {
-      await state.msalInstance.loginRedirect({
-        scopes: [config.apiScope],
-        redirectUri: config.redirectUri,
-        redirectStartPage: config.redirectUri
+      const username = usernameInput.value.trim();
+      const response = await fetchWithTimeout(`${config.apiBaseUrl}/admin/login`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password: passwordInput.value })
       });
-    } catch (error) {
-      console.error('TACC admin sign-in could not be started.', error);
-      authError.hidden = false;
+      passwordInput.value = '';
+      if (!response.ok) {
+        const messages = {
+          400: 'Enter a valid username and password.',
+          401: 'Invalid username or password.',
+          429: 'Too many sign-in attempts. Please wait a minute and try again.',
+          503: 'Administrator sign-in is temporarily unavailable.'
+        };
+        showSignedOut(messages[response.status] || 'Sign-in could not be completed. Please try again.');
+        return;
+      }
+      const payload = await response.json();
+      const session = { accessToken: payload.accessToken, expiresAt: Date.parse(payload.expiresAt), username };
+      if (!sessionIsValid(session)) throw new TypeError('Invalid session response.');
+      try { window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)); }
+      catch {
+        showSignedOut('Enable session storage in your browser to sign in.');
+        return;
+      }
+      activateSession(session);
+      showAuthorized();
+      await loadInventory({ confirmDiscard: false });
+    } catch {
+      showSignedOut('Sign-in could not be completed. Check your connection and try again.');
+    } finally {
+      passwordInput.value = '';
       signInButton.disabled = false;
       signInButton.textContent = 'Sign in';
     }
   };
 
-  const signOut = async () => {
+  const signOut = () => {
     if (!confirmDiscardChanges()) {
       return;
     }
 
-    try {
-      await state.msalInstance.logoutRedirect({
-        account: state.account,
-        postLogoutRedirectUri: config.redirectUri
-      });
-    } catch (error) {
-      console.error('TACC admin sign-out could not be completed.', error);
-      if (views.get('authorized')?.hidden === false) {
-        setStatus('Sign-out could not be completed. Please try again.', 'error');
-      }
-    }
+    showSignedOut();
   };
 
   const initialize = async () => {
@@ -510,53 +497,27 @@ import {
       return;
     }
 
-    state.msalInstance = new PublicClientApplication({
-      auth: {
-        clientId: config.clientId,
-        authority: config.authority,
-        redirectUri: config.redirectUri,
-        postLogoutRedirectUri: config.redirectUri,
-        navigateToLoginRequestUrl: true
-      },
-      cache: {
-        cacheLocation: BrowserCacheLocation.SessionStorage
-      },
-      system: {
-        loggerOptions: {
-          piiLoggingEnabled: false,
-          logLevel: LogLevel.Warning,
-          loggerCallback: (level, message, containsPii) => {
-            if (!containsPii && level <= LogLevel.Warning) {
-              console.warn(`MSAL: ${message}`);
-            }
-          }
-        }
-      }
-    });
-
     try {
-      await state.msalInstance.initialize();
-      const redirectResponse = await state.msalInstance.handleRedirectPromise();
-      state.account = redirectResponse?.account ||
-        state.msalInstance.getActiveAccount() ||
-        state.msalInstance.getAllAccounts()[0] ||
-        null;
-
-      if (!state.account) {
-        showSignedOut(false);
+      const session = JSON.parse(window.sessionStorage.getItem(SESSION_KEY) || 'null');
+      if (!sessionIsValid(session)) {
+        showSignedOut();
         return;
       }
-
-      state.msalInstance.setActiveAccount(state.account);
+      activateSession(session);
       showAuthorized();
       await loadInventory({ confirmDiscard: false });
-    } catch (error) {
-      console.error('TACC admin authentication initialization failed.', error);
-      showSignedOut(true);
+    } catch {
+      showSignedOut('Please sign in to manage inventory.');
     }
   };
 
-  signInButton.addEventListener('click', signIn);
+  loginForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    signIn();
+  });
+  window.addEventListener('focus', () => {
+    if (state.session && !sessionIsValid(state.session)) showSignedOut('Your session expired. Please sign in again.');
+  });
   signOutButtons.forEach((button) => button.addEventListener('click', signOut));
   reloadButton.addEventListener('click', () => loadInventory());
   conflictReloadButton.addEventListener('click', () => loadInventory());
