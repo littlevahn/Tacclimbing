@@ -8,7 +8,7 @@ TACC combines a static HTML/CSS/JavaScript website with a .NET 9 isolated-worker
 Tacc.sln
 |-- Tacc.Site/
 |   |-- Tacc.Site.csproj       Minimal local static-file host
-|   |-- package.json           MSAL Browser bundle build
+|   |-- package.json           Admin JavaScript bundle build
 |   |-- Program.cs
 |   `-- wwwroot/               Production-ready static website
 |       |-- index.html
@@ -30,7 +30,7 @@ Tacc.sln
 3. In Visual Studio 2022 17.11 or later, select the shared `TACC Site + API` launch profile.
 4. Press F5. The API's local service dependency starts Azurite automatically.
 5. Open `http://localhost:7000/shop/index.html` and verify the public inventory state loads.
-6. Open `http://localhost:7000/admin/` to test the Entra-authenticated admin page.
+6. Open `http://localhost:7000/admin/` to test the password-authenticated admin page.
 
 The shared `Tacc.slnLaunch` profile starts both projects. If the Visual Studio version does not expose shared multi-project launch profiles, configure it manually:
 
@@ -78,7 +78,7 @@ dotnet run --project Tacc.Site/Tacc.Site.csproj --launch-profile http
 dotnet run --project api/Tacc.Api.csproj
 ```
 
-Open `http://localhost:7000/shop/index.html` or `http://localhost:7000/admin/`. Do not open either page through a `file:///` URL; browser API and authentication redirects require an HTTP origin.
+Open `http://localhost:7000/shop/index.html` or `http://localhost:7000/admin/`. Do not open either page through a `file:///` URL; browser API calls and login require an HTTP origin.
 
 ## Static production deployment
 
@@ -98,7 +98,7 @@ No production page depends on server rendering or ASP.NET routing.
 - `/index.html` — Surface Lock product overview and existing purchase path
 - `/how-to-use/index.html` — application instructions, session reset, FAQ, and formula
 - `/shop/index.html` — TACC Shirt inventory and size selection
-- `/admin/index.html` — non-prominent, Entra-authenticated inventory administration
+- `/admin/index.html` — non-prominent, password-authenticated inventory administration
 
 Shared styling lives in `Tacc.Site/wwwroot/assets/css/styles.css`, with admin-only styling in `assets/css/admin.css`. Shared navigation behavior lives in `assets/js/site.js`, public environment configuration in `assets/js/config.js`, shop inventory behavior in `assets/js/shop.js`, and the admin source in `assets/js/admin.js`.
 
@@ -128,53 +128,29 @@ returned by the API. Stripe Price IDs and secret configuration remain server-sid
 
 ## Inventory admin page
 
-`/admin/` is a static Microsoft Entra single-page application. It uses the existing two-registration architecture:
+`/admin/` uses a single administrator username/password configured privately in Azure Functions. It calls `POST /api/admin/login`, stores the signed eight-hour token in browser `sessionStorage`, and sends it through `Authorization: Bearer` on the existing admin inventory GET/PUT requests. Logout, expiration and API 401 clear the session. The inventory editor, dynamic variants and ETag handling are preserved.
 
-- `TACC Admin` is the public SPA client. It has no client secret.
-- `TACC` is the protected Functions API. It exposes the delegated `Inventory.Manage` permission and defines the `Tacc.Inventory.Admin` app role.
+The public `config.js` contains only the API base URL and product ID; no credentials or Function keys belong in frontend files. Entra and MSAL are no longer used. Both admin endpoints enforce authentication on the server. Public inventory, health and Stripe endpoints remain independent.
 
-The page signs in through the workforce tenant, acquires an API access token through MSAL Browser, and sends that token only to the configured TACC Function App. The API remains authoritative and requires both the `Inventory.Manage` delegated scope and the `Tacc.Inventory.Admin` role. The admin page manages `tacc-shirt` through the existing concurrency-safe GET/PUT contract and retains the returned ETag after every successful load or save.
-
-Configure these public values once in `Tacc.Site/wwwroot/assets/js/config.js`:
-
-```text
-productionApiBaseUrl    Public HTTPS origin of the Azure Function App
-adminClientId           TACC Admin Application (client) ID
-tenantId                Workforce Directory (tenant) ID
-inventoryManageScope    api://<TACC_API_CLIENT_ID>/Inventory.Manage
-```
-
-Client IDs, tenant IDs, authority URLs, API scopes, and public API origins are identifiers—not secrets. Never put a client secret, storage connection string, account key, bearer token, Stripe secret, or webhook secret in this file.
-
-MSAL Browser is installed from the supported `@azure/msal-browser` npm package and bundled into the committed static `admin.bundle.js`; Node is a build-time tool only and is not required by GitHub Pages. After changing `admin.js` or the MSAL version, rebuild it:
+Generate credentials offline from the repository root:
 
 ```powershell
-cd Tacc.Site
-npm install
-npm run build:admin
+powershell.exe -NoProfile -File .\api\Scripts\New-AdminCredentials.ps1 -Username owner
 ```
 
-### Entra configuration
+Copy the generated `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` and `ADMIN_SESSION_SECRET` into private Function App settings or ignored `api/local.settings.json` under `Values`. Never commit the output. Missing/invalid auth settings disable only administrator access.
 
-In the `TACC Admin` app registration:
+After changing admin JavaScript, rebuild the committed bundle from `Tacc.Site`:
 
-1. Keep the platform type set to **Single-page application**.
-2. Keep the production redirect URI `https://tacclimbing.com/admin/`.
-3. Add `http://localhost:7000/admin/` as the local-development SPA redirect URI.
-4. Under API permissions, add delegated access to `TACC` → `Inventory.Manage` and grant the consent required by the tenant policy.
+```powershell
+npm.cmd ci
+npm.cmd run build:admin
+npm.cmd run test:admin
+```
 
-To authorize a user or B2B guest, open **Enterprise applications** → **TACC** → **Users and groups**, add the user or group, and assign the `Tacc.Inventory.Admin` role. Guest users can use the tenant's configured email one-time-passcode flow; the page does not assume an account domain or account type.
+Run `dotnet test tests/Tacc.Api.Tests/Tacc.Api.Tests.csproj -c Release` from the repository root. The automated tests use synthetic credentials and isolated storage doubles. For a manual check, start the local API/static host and Azurite, sign in, reload, edit/save, verify the two-session conflict control and log out.
 
-The Azure Function App CORS allowlist must include exactly the frontend origins that need access, including `https://tacclimbing.com` in production and `http://localhost:7000` for local testing. The browser preflight must allow the `Authorization` and `Content-Type` request headers and GET/PUT methods. Do not use wildcard production CORS.
-
-### Admin test flow
-
-1. Start Azurite, the API, and the local static host.
-2. Visit `http://localhost:7000/admin/` and sign in as a role-assigned user or guest.
-3. Confirm current quantities load from `GET /api/admin/inventory/tacc-shirt`.
-4. Change a whole-number quantity and save; confirm the success message and new Blob value.
-5. Open a second session, save newer data there, and verify the first session receives the ETag conflict prompt instead of overwriting it.
-6. Test a signed-in user without the app role and confirm the permission message is shown.
+See [administrator authentication operations](docs/AdminAuthentication.md) for configuration, password/secret rotation, CORS, Azure Easy Auth checks, throttling limits, test coverage and manual deployment steps. The existing Pages workflow uploads `wwwroot` without rebuilding JavaScript; coordinate API and frontend deployment after review. No deployment is performed by the implementation task.
 
 ## Instagram configuration
 
@@ -182,9 +158,10 @@ Set the approved public profile URL in `Tacc.Site/wwwroot/assets/js/site.js` by 
 
 ## Backend
 
-The API routes remain unchanged:
+The API exposes:
 
 ```http
+POST /api/admin/login
 GET /api/health
 GET /api/inventory/{productId}
 GET /api/admin/inventory/{productId}
@@ -198,9 +175,13 @@ See `api/README.md` for Blob Storage, Azurite, inventory data, and backend confi
 - Keep the public deployment static under `Tacc.Site/wwwroot/`.
 - Keep `Tacc.Site` free of application logic and backend frameworks.
 - Keep `local.settings.json`, credentials, and production secrets out of source control.
-- Keep admin authentication and authorization enforced by Microsoft Entra and the API; hiding `/admin/` is not a security control.
+- Keep administrator authentication enforced by the API; hiding `/admin/` is not a security control.
 - Keep Stripe Price IDs, secret keys, webhook secrets, and trusted checkout configuration server-side.
 
 ## Monitoring TODO
 
 A future phase should alert the site owner/developer when the public website cannot retrieve inventory from the Azure Functions API. Phase 4 logs the browser failure and shows a safe fallback only.
+
+## Runtime follow-up
+
+This work retains .NET 9. Its support ends **November 10, 2026**; plan a separate supported-runtime upgrade. See [.NET support policy](https://dotnet.microsoft.com/en-us/platform/support/policy).

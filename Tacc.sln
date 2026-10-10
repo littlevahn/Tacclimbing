@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tacc.Site", "Tacc.Site\Tacc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tacc.Api", "api\Tacc.Api.csproj", "{8D596097-1FD5-43C7-B80C-899F5F026E82}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tacc.Api.Tests", "tests\Tacc.Api.Tests\Tacc.Api.Tests.csproj", "{4FE32B06-CC5B-48FB-AF28-51E5C2C8A0E4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +22,10 @@ Global
 		{8D596097-1FD5-43C7-B80C-899F5F026E82}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8D596097-1FD5-43C7-B80C-899F5F026E82}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8D596097-1FD5-43C7-B80C-899F5F026E82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4FE32B06-CC5B-48FB-AF28-51E5C2C8A0E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4FE32B06-CC5B-48FB-AF28-51E5C2C8A0E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4FE32B06-CC5B-48FB-AF28-51E5C2C8A0E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4FE32B06-CC5B-48FB-AF28-51E5C2C8A0E4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

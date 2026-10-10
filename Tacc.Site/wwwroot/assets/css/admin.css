@@ -115,6 +115,36 @@
   margin-top: 12px;
 }
 
+.admin-login-form {
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+  margin-top: 24px;
+}
+
+.admin-login-form label {
+  color: var(--muted-strong);
+  font-weight: 800;
+}
+
+.admin-login-form input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--text);
+  background: #07090b;
+  font: inherit;
+}
+
+.admin-login-form input:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.admin-login-form label:not(:first-child) { margin-top: 8px; }
+
 .admin-account-line {
   margin: calc(clamp(24px, 5vw, 46px) * -1);
   margin-bottom: clamp(26px, 5vw, 44px);

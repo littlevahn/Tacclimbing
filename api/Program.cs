@@ -23,11 +23,20 @@ var host = new HostBuilder()
         services.AddSingleton(new BlobServiceClient(inventoryStorageConnection));
         services.AddSingleton<IInventoryService, BlobInventoryService>();
         services.Configure<StripeOptions>(context.Configuration.GetSection(StripeOptions.SectionName));
-        services.Configure<EntraAuthenticationOptions>(
-            context.Configuration.GetSection(EntraAuthenticationOptions.SectionName));
-        services.AddSingleton<IEntraTokenValidator, EntraTokenValidator>();
-        services.AddSingleton<InventoryAdminAuthorizationHandler>();
+        services.Configure<AdminAuthenticationOptions>(options =>
+        {
+            options.Username = context.Configuration["ADMIN_USERNAME"];
+            options.PasswordHash = context.Configuration["ADMIN_PASSWORD_HASH"];
+            options.SessionSecret = context.Configuration["ADMIN_SESSION_SECRET"];
+        });
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<AdminAuthenticationService>();
+        services.AddSingleton<LoginThrottle>();
+        services.AddSingleton(new LoginSourceResolver(
+            !string.IsNullOrWhiteSpace(context.Configuration["WEBSITE_INSTANCE_ID"])));
     })
     .Build();
 
+// Validate admin settings at initialization without taking public/Stripe endpoints offline.
+_ = host.Services.GetRequiredService<AdminAuthenticationService>();
 host.Run();

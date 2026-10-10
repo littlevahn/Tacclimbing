@@ -13,12 +13,9 @@
     "Stripe__CheckoutCancelUrl": "https://localhost:7001/shop/?checkout=cancelled",
     "Stripe__AllowedShippingCountries__0": "US",
     "Stripe__ShippingRateId": "<not-configured>",
-    "Entra__TenantId": "YOUR_WORKFORCE_TENANT_ID",
-    "Entra__ClientId": "YOUR_API_APPLICATION_CLIENT_ID",
-    "Entra__Authority": "https://login.microsoftonline.com/YOUR_TENANT_ID/v2.0",
-    "Entra__Audience": "api://YOUR_API_APPLICATION_CLIENT_ID",
-    "Entra__AdminRole": "Tacc.Inventory.Admin",
-    "Entra__AdminScope": "Inventory.Manage"
+    "ADMIN_USERNAME": "<not-configured>",
+    "ADMIN_PASSWORD_HASH": "<not-configured>",
+    "ADMIN_SESSION_SECRET": "<not-configured>"
   },
   "Host": {
     "LocalHttpPort": 7071,
