@@ -20,7 +20,7 @@ public sealed class StripeWebhookFunction(
 
     [Function("StripeWebhook")]
     public async Task<HttpResponseData> RunAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "stripe/webhook")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/stripe/webhook")]
         HttpRequestData request,
         CancellationToken cancellationToken)
     {

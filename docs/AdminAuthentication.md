@@ -91,6 +91,27 @@ The API tests use synthetic credentials, an isolated conditional Blob SDK double
 
 For an actual browser check, start the local API/static host with private settings and Azurite, visit `http://localhost:7000/admin/`, log in, reload, edit a quantity, save, and log out. In two sessions verify stale writes return 409; test a signed Stripe test-mode completion independently. Ensure localhost tests use only intended local inventory.
 
+## Login 404 routing correction
+
+Azure Functions validates each raw HTTP trigger route before applying the host route prefix. Routes starting with `admin` or `runtime` are reserved, even with the default `/api` prefix. Consequently, metadata can list `AdminLogin` while the host rejects its `admin/login` route, logs a built-in route conflict, and returns 404 without invoking the worker. The same defect affects both admin inventory triggers. See the [host's route validation](https://github.com/Azure/azure-functions-host/blob/dev/src/WebJobs.Script/Host/ScriptHost.cs).
+
+`host.json` now sets `extensions.http.routePrefix` to an empty string. All seven HTTP trigger attributes explicitly include `api/`, preserving every existing public, admin, and Stripe URL. `AdminLogin` registers as **POST `/api/admin/login`** with anonymous host authorization; application authentication still protects admin inventory. No authentication or Stripe processing behavior changes.
+
+The regression tests include a real Functions host and a dedicated Azurite instance on temporary ports, with synthetic credentials and disposable inventory. The test never prints credentials, hashes, keys, or tokens and cleans up its child processes and storage. Build Release first, then set executable paths for your local installations:
+
+```powershell
+dotnet build Tacc.sln -c Release
+$env:TACC_FUNCTIONS_HOST = 'C:\Program Files\Microsoft\Azure Functions Core Tools\func.exe'
+$env:TACC_AZURITE = 'C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\Extensions\Microsoft\Azure Storage Emulator\azurite.exe'
+dotnet test tests/Tacc.Api.Tests/Tacc.Api.Tests.csproj -c Release --no-build --logger 'console;verbosity=detailed'
+```
+
+Without these paths, only the external-tool HTTP test is skipped; the route validation regression and other unit tests still run. On the tested installations, `func.exe` was version 4.13.0. The `func.cmd` shim on PATH was broken, so the working installed executable was used directly.
+
+Before the fix, the real host logged route conflicts for all three admin functions, health returned 200, and empty login returned 404. After the fix: empty login 400; wrong credentials 401; valid credentials 200 with a validated token; public inventory 200; unauthenticated admin GET/PUT 401; authenticated admin GET 200.
+
+Deployment requires publishing the rebuilt API package, including `host.json` and generated function metadata together. Existing URLs and frontend files require no changes for this correction. This routing fix has not been deployed or pushed.
+
 ## Manual deployment checklist (not performed by this implementation)
 
 1. Review and run the builds/tests. Prepare the three private App Settings and preserve storage/Stripe settings. Set HTTPS-only access.

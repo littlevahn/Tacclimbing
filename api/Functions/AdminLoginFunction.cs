@@ -16,7 +16,7 @@ public sealed class AdminLoginFunction(AdminAuthenticationService authentication
 
     [Function("AdminLogin")]
     public async Task<HttpResponseData> RunAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/login")] HttpRequestData request,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/admin/login")] HttpRequestData request,
         CancellationToken cancellationToken)
     {
         if (!authentication.IsConfigured)

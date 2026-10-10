@@ -9,7 +9,7 @@ public sealed class HealthFunction(ILogger<HealthFunction> logger)
 {
     [Function("Health")]
     public async Task<HttpResponseData> RunAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "health")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/health")]
         HttpRequestData request)
     {
         logger.LogInformation("TACC API health endpoint called.");

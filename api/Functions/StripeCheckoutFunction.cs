@@ -22,7 +22,7 @@ public sealed class StripeCheckoutFunction(
 
     [Function("StripeCheckout")]
     public async Task<HttpResponseData> RunAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "stripe/checkout")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/stripe/checkout")]
         HttpRequestData request,
         CancellationToken cancellationToken)
     {

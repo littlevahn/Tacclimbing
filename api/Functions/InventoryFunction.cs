@@ -13,7 +13,7 @@ public sealed class InventoryFunction(
 {
     [Function("Inventory")]
     public async Task<HttpResponseData> RunAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "inventory/{productId}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/inventory/{productId}")]
         HttpRequestData request,
         string productId,
         CancellationToken cancellationToken)

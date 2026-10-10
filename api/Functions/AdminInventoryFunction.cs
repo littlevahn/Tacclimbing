@@ -17,7 +17,7 @@ public sealed class AdminInventoryFunction(
 
     [Function("AdminInventory")]
     public async Task<HttpResponseData> GetAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/inventory/{productId}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/admin/inventory/{productId}")]
         HttpRequestData request,
         string productId,
         CancellationToken cancellationToken)
@@ -47,7 +47,7 @@ public sealed class AdminInventoryFunction(
 
     [Function("AdminInventoryUpdate")]
     public async Task<HttpResponseData> PutAsync(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "admin/inventory/{productId}")]
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "api/admin/inventory/{productId}")]
         HttpRequestData request,
         string productId,
         FunctionContext functionContext,

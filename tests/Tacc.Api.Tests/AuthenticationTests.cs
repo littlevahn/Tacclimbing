@@ -181,7 +181,7 @@ public sealed class AuthenticationTests
         var inventoryTriggers = typeof(AdminInventoryFunction).GetMethods()
             .Where(method => method.GetParameters().Any(parameter =>
                 parameter.GetCustomAttributes(typeof(HttpTriggerAttribute), false)
-                    .OfType<HttpTriggerAttribute>().Any(trigger => trigger.Route?.StartsWith("admin/inventory/", StringComparison.Ordinal) == true)))
+                    .OfType<HttpTriggerAttribute>().Any(trigger => trigger.Route?.StartsWith("api/admin/inventory/", StringComparison.Ordinal) == true)))
             .ToArray();
         Assert.Equal(2, inventoryTriggers.Length);
         foreach (var method in inventoryTriggers)
@@ -190,6 +190,27 @@ public sealed class AuthenticationTests
             Assert.True(AdminAuthenticationMiddleware.RequiresAuthentication(attribute.Name));
         }
         Assert.False(AdminAuthenticationMiddleware.RequiresAuthentication("AdminLogin"));
+    }
+
+    [Fact]
+    public void HttpRoutesAvoidTheHostsReservedRouteSpace()
+    {
+        // The host rejects admin/runtime prefixes BEFORE applying host.json's routePrefix.
+        var routes = typeof(AdminLoginFunction).Assembly.GetTypes()
+            .SelectMany(type => type.GetMethods())
+            .SelectMany(method => method.GetParameters())
+            .SelectMany(parameter => parameter.GetCustomAttributes(typeof(HttpTriggerAttribute), false)
+                .OfType<HttpTriggerAttribute>())
+            .Select(trigger => trigger.Route).ToArray();
+        Assert.Equal(7, routes.Length);
+        Assert.Contains("api/admin/login", routes);
+        Assert.All(routes, route =>
+        {
+            Assert.NotNull(route);
+            Assert.False(route.Trim('/').StartsWith("admin", StringComparison.OrdinalIgnoreCase));
+            Assert.False(route.Trim('/').StartsWith("runtime", StringComparison.OrdinalIgnoreCase));
+            Assert.StartsWith("api/", route);
+        });
     }
 
     [Fact]
